@@ -843,7 +843,7 @@ export default function PartnerList({ user }: { user: UserProfile }) {
                           <span className="text-[9px] font-bold text-gray-400">{format(new Date(p.createdAt), 'dd/MM/yyyy')}</span>
                         </td>
                         <td className="px-4 py-2 text-right">
-                          <div className={`flex items-center justify-end gap-2 transition-opacity ${inlineEditingId === p.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                          <div className={`flex items-center justify-end gap-2 transition-opacity opacity-100`}>
                             {inlineEditingId === p.id ? (
                               <>
                                 <button
