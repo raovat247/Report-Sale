@@ -558,12 +558,14 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
 
         {/* Annual Progress Circle */}
         {(() => {
-          const totalTarget = Object.entries(monthlyTargetsMap)
-            .filter(([m]) => m.startsWith(String(chartYear)))
-            .reduce((sum, [, v]) => sum + v, 0);
-          const totalActual = records
-            .filter(r => r.date.startsWith(String(chartYear)))
-            .reduce((sum, r) => sum + r.revenue, 0);
+          const now = new Date();
+          const filterMonths = timeRange === 'month'
+            ? [format(now, 'yyyy-MM')]
+            : timeRange === 'year'
+            ? Array.from({ length: 12 }, (_, i) => `${now.getFullYear()}-${String(i + 1).padStart(2, '0')}`)
+            : Object.keys(monthlyTargetsMap);
+          const totalTarget = filterMonths.reduce((sum, m) => sum + (monthlyTargetsMap[m] || 0), 0);
+          const totalActual = filteredRecords.reduce((sum, r) => sum + r.revenue, 0);
           const pct = totalTarget > 0 ? Math.min(100, Math.round((totalActual / totalTarget) * 100)) : 0;
           const remaining = Math.max(0, totalTarget - totalActual);
           const radius = 70;
