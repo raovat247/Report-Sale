@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, where, getDocs, addDoc, setDoc, doc, deleteDoc } from 'firebase/firestore';
 import { MonthlyTarget, UserProfile } from '../types';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend } from 'date-fns';
-import { Save, Plus, Trash2, Users, Target, TrendingUp, Calendar, AlertCircle } from 'lucide-react';
+import { Save, Plus, Trash2, Users, Target, TrendingUp, Calendar, AlertCircle, Download, Upload } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 export default function TargetSettings({ user }: { user: UserProfile }) {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -20,6 +21,9 @@ export default function TargetSettings({ user }: { user: UserProfile }) {
   });
 
   const isAdmin = user.role === 'admin';
+  const importRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ success: number; error: number } | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -95,6 +99,99 @@ export default function TargetSettings({ user }: { user: UserProfile }) {
     return workingDays > 0 ? (total / workingDays).toLocaleString() : '0';
   };
 
+  const downloadTemplate = () => {
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const m = String(i + 1).padStart(2, '0');
+      return `2026-${m}`;
+    });
+
+    const headers = ['Tên nhân viên', 'Email'];
+    months.forEach((_, i) => {
+      const t = `T${i + 1}`;
+      headers.push(`${t} Doanh số`, `${t} Đại lý/CTV`, `${t} MXH`, `${t} Zalo`);
+    });
+
+    const sampleRows = users.map(u => {
+      const row: (string | number)[] = [u.displayName, u.email];
+      months.forEach(() => row.push(0, 0, 0, 0));
+      return row;
+    });
+
+    if (sampleRows.length === 0) {
+      sampleRows.push(['Nguyễn Văn A', 'nva@example.com', ...Array(48).fill(0)]);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+    ws['!cols'] = [{ wch: 25 }, { wch: 28 }, ...Array(48).fill({ wch: 14 })];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Mục tiêu 2026');
+    XLSX.writeFile(wb, 'template_muc_tieu_2026.xlsx');
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportResult(null);
+    let success = 0;
+    let error = 0;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 }) as (string | number)[][];
+
+      const dataRows = rows.slice(1).filter(r => r[0]);
+
+      for (const row of dataRows) {
+        const name = String(row[0]).trim();
+        const email = String(row[1]).trim();
+        const matchedUser = users.find(
+          u => u.displayName.toLowerCase() === name.toLowerCase() || u.email.toLowerCase() === email.toLowerCase()
+        );
+        if (!matchedUser) { error++; continue; }
+
+        for (let i = 0; i < 12; i++) {
+          const month = `2026-${String(i + 1).padStart(2, '0')}`;
+          const base = 2 + i * 4;
+          const revenue = Number(row[base]) || 0;
+          const partners = Number(row[base + 1]) || 0;
+          const mxh = Number(row[base + 2]) || 0;
+          const zalo = Number(row[base + 3]) || 0;
+
+          if (revenue === 0 && partners === 0 && mxh === 0 && zalo === 0) continue;
+
+          try {
+            const q = query(
+              collection(db, 'monthly_targets'),
+              where('userId', '==', matchedUser.uid),
+              where('month', '==', month)
+            );
+            const snap = await getDocs(q);
+            const targetData = { userId: matchedUser.uid, month, revenue, partners, mxh, zalo, createdAt: new Date().toISOString() };
+            if (!snap.empty) {
+              await setDoc(doc(db, 'monthly_targets', snap.docs[0].id), targetData);
+            } else {
+              await addDoc(collection(db, 'monthly_targets'), targetData);
+            }
+            success++;
+          } catch {
+            error++;
+          }
+        }
+      }
+
+      setImportResult({ success, error });
+      fetchTargets();
+    } catch {
+      setImportResult({ success: 0, error: 1 });
+    } finally {
+      setImporting(false);
+      if (importRef.current) importRef.current.value = '';
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -102,15 +199,38 @@ export default function TargetSettings({ user }: { user: UserProfile }) {
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Thiết lập mục tiêu</h1>
           <p className="text-gray-400 text-sm font-medium">Quản lý mục tiêu doanh số và KPI cho nhân viên</p>
         </div>
-        <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
-          <Calendar className="w-5 h-5 text-primary ml-2" />
-          <input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="bg-transparent border-none focus:ring-0 text-sm font-bold text-gray-900 outline-none"
-          />
+        <div className="flex items-center gap-3 flex-wrap">
+          {isAdmin && (
+            <>
+              <button
+                onClick={downloadTemplate}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-sm"
+              >
+                <Download className="w-4 h-4" />
+                Tải template Excel
+              </button>
+              <label className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-sm cursor-pointer">
+                <Upload className="w-4 h-4" />
+                {importing ? 'Đang import...' : 'Import Excel'}
+                <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
+              </label>
+            </>
+          )}
+          <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+            <Calendar className="w-5 h-5 text-primary ml-2" />
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-transparent border-none focus:ring-0 text-sm font-bold text-gray-900 outline-none"
+            />
+          </div>
         </div>
+        {importResult && (
+          <div className={`text-sm font-bold px-4 py-2 rounded-xl ${importResult.error > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+            Import xong: {importResult.success} tháng thành công{importResult.error > 0 ? `, ${importResult.error} lỗi` : ''}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
