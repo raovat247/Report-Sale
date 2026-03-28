@@ -1,0 +1,569 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { db, auth, handleFirestoreError, OperationType } from '../firebase';
+import { collection, addDoc, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
+import { DailyReport, UserProfile } from '../types';
+import { format } from 'date-fns';
+import { Save, CheckCircle2, AlertCircle, Calendar as CalendarIcon, DollarSign, Users, MessageSquare, Mail, Zap, Plus, Trash2, Link as LinkIcon, Phone, User as UserIcon, FileText, X, Copy, Check, Camera } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { toBlob } from 'html-to-image';
+
+interface ReportFormProps {
+  user: UserProfile;
+}
+
+export default function ReportForm({ user }: ReportFormProps) {
+  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryData, setSummaryData] = useState<DailyReport | null>(null);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState(user.uid);
+
+  const [formData, setFormData] = useState<Omit<DailyReport, 'id' | 'userId' | 'date' | 'createdAt'>>({
+    revenue: 0,
+    khachHangTuTim: 0,
+    daiLyCTV: [],
+    khachHangGioiThieu: 0,
+    chat: 0,
+    donHangMBI: 0,
+    dangTinMXH: [],
+    soKHTiemNang: 0,
+    khachHangCu: 0,
+  });
+
+  const [formattedRevenue, setFormattedRevenue] = useState('0');
+  const [capturing, setCapturing] = useState(false);
+  const summaryRef = useRef<HTMLDivElement>(null);
+
+  // Local state for adding new items
+  const [newPartner, setNewPartner] = useState({ name: '', phone: '', content: '' });
+  const [newMxhLink, setNewMxhLink] = useState('');
+
+  useEffect(() => {
+    if (user.role === 'admin') {
+      const fetchUsers = async () => {
+        try {
+          const q = query(collection(db, 'users'), where('status', '==', 'active'));
+          const querySnapshot = await getDocs(q);
+          const usersList = querySnapshot.docs.map(doc => doc.data() as UserProfile);
+          setUsers(usersList.sort((a, b) => a.displayName.localeCompare(b.displayName)));
+        } catch (err) {
+          console.error('Error fetching users:', err);
+        }
+      };
+      fetchUsers();
+    }
+  }, [user.role]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    
+    if (name === 'revenue') {
+      // Remove non-numeric characters for the numeric value
+      const numericValue = parseInt(value.replace(/\D/g, '')) || 0;
+      // Format the display value
+      const formatted = new Intl.NumberFormat('vi-VN').format(numericValue);
+      
+      setFormattedRevenue(formatted);
+      setFormData(prev => ({ ...prev, [name]: numericValue }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: e.target.type === 'number' ? (parseFloat(value) || 0) : value
+      }));
+    }
+  };
+
+  const addPartner = () => {
+    if (!newPartner.name || !newPartner.phone) return;
+    setFormData(prev => ({
+      ...prev,
+      daiLyCTV: [...prev.daiLyCTV, { ...newPartner }],
+    }));
+    setNewPartner({ name: '', phone: '', content: '' });
+  };
+
+  const removePartner = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      daiLyCTV: prev.daiLyCTV.filter((_, i) => i !== index),
+    }));
+  };
+
+  const addMxhLink = () => {
+    if (!newMxhLink) return;
+    setFormData(prev => ({
+      ...prev,
+      dangTinMXH: [...prev.dangTinMXH, newMxhLink],
+    }));
+    setNewMxhLink('');
+  };
+
+  const removeMxhLink = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      dangTinMXH: prev.dangTinMXH.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setSuccess(false);
+    setError(null);
+
+    try {
+      const reportData: Omit<DailyReport, 'id'> = {
+        ...formData,
+        userId: selectedUserId,
+        date,
+        createdAt: new Date().toISOString(),
+      };
+
+      const q = query(
+        collection(db, 'daily_reports'),
+        where('userId', '==', selectedUserId),
+        where('date', '==', date)
+      );
+      const querySnapshot = await getDocs(q);
+
+      let docId;
+      if (!querySnapshot.empty) {
+        docId = querySnapshot.docs[0].id;
+        await setDoc(doc(db, 'daily_reports', docId), reportData);
+        setSummaryData({ id: docId, ...reportData });
+      } else {
+        const docRef = await addDoc(collection(db, 'daily_reports'), reportData);
+        docId = docRef.id;
+        setSummaryData({ id: docId, ...reportData });
+      }
+
+      // Sync with public_stats
+      const reportingUser = user.role === 'admin' ? users.find(u => u.uid === selectedUserId) : user;
+      const publicStatId = `${selectedUserId}_${date}`;
+      await setDoc(doc(db, 'public_stats', publicStatId), {
+        userId: selectedUserId,
+        userName: reportingUser?.displayName || 'Unknown',
+        userPhotoURL: reportingUser?.photoURL || '',
+        date,
+        revenue: formData.revenue,
+        partnerCount: formData.daiLyCTV.length,
+        mxhCount: formData.dangTinMXH.length,
+        leadsCount: formData.soKHTiemNang,
+        updatedAt: new Date().toISOString()
+      });
+
+      setSuccess(true);
+      setShowSummary(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'daily_reports');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCapture = async () => {
+    if (!summaryRef.current) return;
+    
+    setCapturing(true);
+    try {
+      // Small delay to ensure everything is rendered
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const blob = await toBlob(summaryRef.current, {
+        cacheBust: true,
+        backgroundColor: '#fcfcfc',
+        pixelRatio: 2, // Higher quality
+      });
+
+      if (blob) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            [blob.type]: blob
+          })
+        ]);
+        alert('Đã chụp ảnh báo cáo và lưu vào bộ nhớ tạm! Bạn có thể dán (Paste) vào Zalo/Messenger.');
+      }
+    } catch (err) {
+      console.error('Error capturing screenshot:', err);
+      alert('Không thể chụp ảnh báo cáo. Vui lòng thử lại hoặc chụp màn hình thủ công.');
+    } finally {
+      setCapturing(false);
+    }
+  };
+
+  const numericFields = [
+    { name: 'revenue', label: 'Doanh số (VNĐ)', icon: <DollarSign className="w-4 h-4" /> },
+    { name: 'khachHangTuTim', label: 'Khách hàng tự tìm', icon: <Users className="w-4 h-4" /> },
+    { name: 'khachHangGioiThieu', label: 'Khách hàng giới thiệu', icon: <Users className="w-4 h-4" /> },
+    { name: 'chat', label: 'Chat', icon: <MessageSquare className="w-4 h-4" /> },
+    { name: 'donHangMBI', label: 'Đơn hàng MBI', icon: <Zap className="w-4 h-4" /> },
+    { name: 'soKHTiemNang', label: 'Số KH tiềm năng', icon: <Users className="w-4 h-4" /> },
+    { name: 'khachHangCu', label: 'KH Cũ của tôi', icon: <Users className="w-4 h-4" /> },
+  ];
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
+        <div className="bg-primary p-10 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+          <div className="relative z-10">
+            <h2 className="text-3xl font-black tracking-tight">Báo cáo ngày</h2>
+            <p className="text-white/70 text-sm mt-2 font-medium">Cập nhật kết quả công việc hàng ngày của bạn</p>
+          </div>
+          <div className="relative z-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {user.role === 'admin' && (
+              <div className="flex items-center gap-3 bg-white/20 px-4 py-3 rounded-2xl border border-white/20 backdrop-blur-md">
+                <UserIcon className="w-5 h-5 text-white" />
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className="bg-transparent text-white border-none focus:ring-0 text-sm font-bold outline-none [color-scheme:dark] cursor-pointer"
+                >
+                  {users.map(u => (
+                    <option key={u.uid} value={u.uid} className="text-gray-900">
+                      {u.displayName} {u.uid === user.uid ? '(Tôi)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex items-center gap-3 bg-white/20 px-6 py-3 rounded-2xl border border-white/20 backdrop-blur-md">
+              <CalendarIcon className="w-5 h-5 text-white" />
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="bg-transparent text-white border-none focus:ring-0 text-sm font-bold outline-none [color-scheme:dark]"
+              />
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-10 space-y-12">
+          {/* Numeric Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {numericFields.map((field) => (
+              <div key={field.name} className="space-y-3 group">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                  <span className="p-1.5 bg-gray-50 rounded-lg text-gray-400 group-focus-within:text-primary transition-colors">{field.icon}</span>
+                  {field.label}
+                </label>
+                <div className="relative">
+                  <input
+                    type={field.name === 'revenue' ? 'text' : 'number'}
+                    name={field.name}
+                    value={field.name === 'revenue' ? formattedRevenue : (formData[field.name as keyof typeof formData] as number)}
+                    onChange={handleChange}
+                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl py-4 px-5 text-gray-900 font-bold focus:bg-white focus:border-primary/20 focus:ring-0 transition-all"
+                    placeholder="0"
+                  />
+                  {field.name === 'revenue' && (
+                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-400 uppercase">VNĐ</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 pt-12 border-t border-gray-50">
+            {/* Dai Ly / CTV Section */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold flex items-center gap-2 text-gray-900">
+                  <Users className="text-primary w-5 h-5" />
+                  Đại lý / CTV
+                </h3>
+                <span className="bg-primary/5 text-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
+                  {formData.daiLyCTV.length} Đối tác
+                </span>
+              </div>
+              
+              <div className="bg-gray-50 p-6 rounded-2xl space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tên đối tác</label>
+                    <input
+                      type="text"
+                      value={newPartner.name}
+                      onChange={(e) => setNewPartner(p => ({ ...p, name: e.target.value }))}
+                      className="w-full bg-white border-none rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20"
+                      placeholder="Nguyễn Văn A"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Số điện thoại</label>
+                    <input
+                      type="text"
+                      value={newPartner.phone}
+                      onChange={(e) => setNewPartner(p => ({ ...p, phone: e.target.value }))}
+                      className="w-full bg-white border-none rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20"
+                      placeholder="090..."
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nội dung trao đổi</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newPartner.content}
+                      onChange={(e) => setNewPartner(p => ({ ...p, content: e.target.value }))}
+                      className="flex-1 bg-white border-none rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20"
+                      placeholder="Trao đổi về chính sách..."
+                    />
+                    <button
+                      type="button"
+                      onClick={addPartner}
+                      className="p-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {formData.daiLyCTV.map((p, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-4 bg-white border border-gray-50 rounded-2xl shadow-sm group hover:border-primary/20 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center text-primary font-bold text-xs">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">{p.name} • {p.phone}</p>
+                        <p className="text-xs text-gray-400 font-medium">{p.content}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => removePartner(idx)} className="p-2 text-gray-300 hover:text-red-500 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* MXH Section */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold flex items-center gap-2 text-gray-900">
+                  <LinkIcon className="text-primary w-5 h-5" />
+                  Đăng tin MXH
+                </h3>
+                <span className="bg-primary/5 text-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
+                  {formData.dangTinMXH.length} Bài viết
+                </span>
+              </div>
+
+              <div className="bg-gray-50 p-6 rounded-2xl space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Link bài viết Facebook</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newMxhLink}
+                      onChange={(e) => setNewMxhLink(e.target.value)}
+                      className="flex-1 bg-white border-none rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20"
+                      placeholder="https://facebook.com/..."
+                    />
+                    <button
+                      type="button"
+                      onClick={addMxhLink}
+                      className="p-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {formData.dangTinMXH.map((link, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-4 bg-white border border-gray-50 rounded-2xl shadow-sm hover:border-primary/20 transition-all">
+                    <div className="flex items-center gap-4 overflow-hidden">
+                      <div className="w-8 h-8 bg-primary/5 rounded-lg flex items-center justify-center text-primary">
+                        <LinkIcon className="w-4 h-4" />
+                      </div>
+                      <p className="text-xs text-primary font-bold truncate">{link}</p>
+                    </div>
+                    <button onClick={() => removeMxhLink(idx)} className="p-2 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-16 flex items-center justify-between border-t border-gray-50 pt-10">
+            <div className="flex items-center gap-3">
+              {success && (
+                <div className="flex items-center gap-2 text-green-600 font-bold animate-in fade-in slide-in-from-left-4">
+                  <CheckCircle2 className="w-6 h-6" />
+                  Báo cáo đã được lưu!
+                </div>
+              )}
+              {error && (
+                <div className="flex items-center gap-2 text-red-600 font-bold">
+                  <AlertCircle className="w-6 h-6" />
+                  {error}
+                </div>
+              )}
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-10 py-4 bg-primary text-white rounded-2xl font-bold uppercase tracking-widest text-[10px] flex items-center gap-3 hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 active:scale-95 disabled:opacity-50"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <>
+                  <Save className="w-5 h-5" />
+                  Lưu báo cáo
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Report Summary Modal */}
+      <AnimatePresence>
+        {showSummary && summaryData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Modal Header */}
+              <div className="bg-primary p-5 text-white relative overflow-hidden flex-shrink-0">
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+                <div className="flex justify-between items-start relative z-10">
+                  <div>
+                    <h2 className="text-xl font-black tracking-tight">Xác nhận báo cáo</h2>
+                    <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest mt-0.5">Vui lòng kiểm tra và chụp màn hình</p>
+                  </div>
+                  <button 
+                    onClick={() => setShowSummary(false)}
+                    className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div 
+                ref={summaryRef}
+                id="report-summary" 
+                className="p-5 space-y-5 overflow-y-auto bg-[#fcfcfc]"
+              >
+                {/* User & Date Info */}
+                <div className="flex flex-wrap gap-3 items-center justify-between border-b border-gray-100 pb-4">
+                  <div className="flex items-center gap-2.5">
+                    {(() => {
+                      const reportUser = users.find(u => u.uid === summaryData.userId) || user;
+                      return (
+                        <>
+                          {reportUser.photoURL ? (
+                            <img 
+                              src={reportUser.photoURL} 
+                              alt={reportUser.displayName} 
+                              className="w-10 h-10 rounded-xl object-cover border-2 border-primary/10"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center text-primary">
+                              <UserIcon className="w-5 h-5" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Nhân viên</p>
+                            <p className="text-base font-black text-gray-900 leading-tight">{reportUser.displayName}</p>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="flex-1 text-center">
+                    <span className="text-[20px] font-black uppercase tracking-[0.15em] text-[oklch(51.1%_0.262_276.966)]">BÁO CÁO NGÀY</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm">
+                    <CalendarIcon className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-xs font-bold text-gray-700">{format(new Date(summaryData.date), 'dd/MM/yyyy')}</span>
+                  </div>
+                </div>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {numericFields.map((field) => (
+                    <div key={field.name} className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-0.5">
+                      <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                        {field.icon}
+                        {field.label}
+                      </p>
+                      <p className="text-base font-black text-gray-900">
+                        {field.name === 'revenue' 
+                          ? new Intl.NumberFormat('vi-VN').format(summaryData[field.name as keyof DailyReport] as number)
+                          : summaryData[field.name as keyof DailyReport] as number
+                        }
+                        {field.name === 'revenue' && <span className="text-[9px] ml-0.5 text-gray-400">đ</span>}
+                      </p>
+                    </div>
+                  ))}
+                  {/* Partners Count */}
+                  <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-0.5">
+                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                      <Users className="w-3.5 h-3.5 text-primary" />
+                      Đối tác/CTV
+                    </p>
+                    <p className="text-base font-black text-gray-900">{summaryData.daiLyCTV.length}</p>
+                  </div>
+                  {/* MXH Count */}
+                  <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-0.5">
+                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                      <LinkIcon className="w-3.5 h-3.5 text-primary" />
+                      Bài viết MXH
+                    </p>
+                    <p className="text-base font-black text-gray-900">{summaryData.dangTinMXH.length}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-5 bg-white border-t border-gray-50 flex-shrink-0 flex gap-3">
+                <button
+                  onClick={handleCapture}
+                  disabled={capturing}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {capturing ? (
+                    <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <Camera className="w-3.5 h-3.5" />
+                  )}
+                  {capturing ? 'Đang chụp...' : 'Chụp ảnh'}
+                </button>
+                <button
+                  onClick={() => setShowSummary(false)}
+                  className="flex-[2] py-3 bg-primary text-white rounded-xl font-bold uppercase tracking-widest text-[9px] shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95"
+                >
+                  Hoàn tất
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+

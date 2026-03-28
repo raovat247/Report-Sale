@@ -1,0 +1,134 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "sales"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "MonthlyTarget": {
+      "title": "Monthly Target",
+      "description": "Monthly goals for a sales person",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "month": { "type": "string", "description": "YYYY-MM format" },
+        "revenue": { "type": "number" },
+        "partners": { "type": "number", "description": "Số Đại lý/CTV ký hợp đồng" },
+        "mxh": { "type": "number", "description": "Số bài đăng MXH" },
+        "zalo": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "month", "revenue"]
+    },
+    "DailyReport": {
+      "title": "Daily Report",
+      "description": "Daily work report from sales person",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "revenue": { "type": "number" },
+        "khachHangTuTim": { "type": "number" },
+        "daiLyCTV": { 
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "phone": { "type": "string" },
+              "content": { "type": "string" }
+            }
+          }
+        },
+        "khachHangGioiThieu": { "type": "number" },
+        "chat": { "type": "number" },
+        "donHangMBI": { "type": "number" },
+        "dangTinMXH": { 
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "soKHTiemNang": { "type": "number" },
+        "khachHangCu": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date"]
+    },
+    "AppSetting": {
+      "title": "App Setting",
+      "description": "Global application settings",
+      "type": "object",
+      "properties": {
+        "appName": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["appName"]
+    },
+    "PublicStat": {
+      "title": "Public Stat",
+      "description": "Non-PII daily stats for leaderboard",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhotoURL": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "revenue": { "type": "number" },
+        "partnerCount": { "type": "number" },
+        "mxhCount": { "type": "number" },
+        "leadsCount": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "date"]
+    },
+    "GeneralRevenueRecord": {
+      "title": "General Revenue Record",
+      "description": "Revenue data imported from Excel",
+      "type": "object",
+      "properties": {
+        "source": { "type": "string" },
+        "orderId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "companyName": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "revenue": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["source", "orderId", "date", "employeeName", "revenue"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Collection of user profiles"
+    },
+    "monthly_targets": {
+      "schema": "MonthlyTarget",
+      "description": "Collection of monthly targets"
+    },
+    "daily_reports": {
+      "schema": "DailyReport",
+      "description": "Collection of daily reports"
+    },
+    "settings": {
+      "schema": "AppSetting",
+      "description": "Global application settings"
+    },
+    "public_stats": {
+      "schema": "PublicStat",
+      "description": "Collection of non-PII daily stats for leaderboard"
+    },
+    "general_revenue": {
+      "schema": "GeneralRevenueRecord",
+      "description": "Collection of revenue records imported from Excel"
+    }
+  }
+}

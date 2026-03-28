@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Neue Einstellung", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-primary: #6366f1;
+  --color-sidebar-bg: #ffffff;
+  --color-main-bg: #f8f9fa;
+}
+
+@layer base {
+  body {
+    @apply font-sans bg-main-bg text-gray-900;
+  }
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');

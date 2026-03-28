@@ -1,0 +1,173 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string
+    //   - role: string (required, 'admin' | 'sales')
+    //   - createdAt: timestamp
+    //
+    // Collection: monthly_targets
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required)
+    //   - month: string (required, YYYY-MM)
+    //   - revenue: number (required)
+    //   - partners: number
+    //   - mxh: number
+    //   - zalo: number
+    //   - createdAt: timestamp
+    //
+    // Collection: daily_reports
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - revenue: number
+    //   - khachHangTuTim: number
+    //   - daiLyCTV: list (objects with name, phone, content)
+    //   - khachHangGioiThieu: number
+    //   - chat: number
+    //   - donHangMBI: number
+    //   - dangTinMXH: list (strings)
+    //   - soKHTiemNang: number
+    //   - khachHangCu: number
+    //   - createdAt: timestamp
+    //
+    // Collection: general_revenue
+    // Document ID: auto-generated
+    // Fields:
+    //   - source: string (required)
+    //   - orderId: string (required)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - companyName: string
+    //   - employeeName: string (required)
+    //   - revenue: number (required)
+    //   - createdAt: timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (
+          (request.auth.token.email == "toanlv@matbao.vn" || request.auth.token.email == "toanlv1@matbao.com") ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        );
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAny(['uid', 'email', 'displayName', 'role', 'status', 'createdAt']) &&
+             data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'status', 'createdAt']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role in ['admin', 'sales'] &&
+             data.status in ['pending', 'active', 'disabled'];
+    }
+
+    function isValidTarget(data) {
+      return data.userId is string &&
+             data.month is string &&
+             data.month.matches('^\\d{4}-\\d{2}$') &&
+             data.revenue is number;
+    }
+
+    function isValidReport(data) {
+      return data.userId is string &&
+             data.date is string &&
+             data.date.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
+             data.revenue is number &&
+             data.khachHangTuTim is number &&
+             data.khachHangGioiThieu is number &&
+             data.chat is number &&
+             data.donHangMBI is number &&
+             data.soKHTiemNang is number &&
+             data.khachHangCu is number &&
+             data.daiLyCTV is list &&
+             data.dangTinMXH is list;
+    }
+
+    function isValidGeneralRevenue(data) {
+      return data.source is string && data.source.size() > 0 && data.source.size() < 100 &&
+             data.orderId is string && data.orderId.size() > 0 && data.orderId.size() < 100 &&
+             data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
+             data.employeeName is string && data.employeeName.size() > 0 && data.employeeName.size() < 100 &&
+             data.revenue is number &&
+             (!('companyName' in data) || (data.companyName is string && data.companyName.size() < 200));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    (
+                      (isOwner(userId) && request.resource.data.role == 'sales' && request.resource.data.status == 'pending') || 
+                      (isOwner(userId) && (request.auth.token.email == "toanlv@matbao.vn" || request.auth.token.email == "toanlv1@matbao.com") && request.resource.data.role == 'admin' && request.resource.data.status == 'active') ||
+                      isAdmin()
+                    );
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        (isOwner(userId) && 
+         request.resource.data.role == resource.data.role && 
+         request.resource.data.status == resource.data.status &&
+         request.resource.data.email == resource.data.email &&
+         request.resource.data.uid == resource.data.uid)
+      ) && isValidUser(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /monthly_targets/{targetId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create, update: if isAdmin() && isValidTarget(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /daily_reports/{reportId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && (request.auth.uid == request.resource.data.userId || isAdmin()) && isValidReport(request.resource.data);
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin()) && isValidReport(request.resource.data);
+      allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.userId);
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /public_stats/{statId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (request.auth.uid == request.resource.data.userId || isAdmin());
+    }
+
+    match /general_revenue/{recordId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidGeneralRevenue(request.resource.data);
+      allow update: if isAdmin() && isValidGeneralRevenue(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}
