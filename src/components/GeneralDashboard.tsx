@@ -510,9 +510,9 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Monthly Revenue Chart */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50 col-span-full">
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50 lg:col-span-2">
           <div className="flex justify-between items-center mb-8">
             <div>
               <h3 className="text-lg font-bold text-gray-900">Doanh số theo tháng {chartYear} — Mục tiêu và Thực hiện</h3>
@@ -556,8 +556,58 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
           </div>
         </div>
 
+        {/* Annual Progress Circle */}
+        {(() => {
+          const totalTarget = Object.entries(monthlyTargetsMap)
+            .filter(([m]) => m.startsWith(String(chartYear)))
+            .reduce((sum, [, v]) => sum + v, 0);
+          const totalActual = records
+            .filter(r => r.date.startsWith(String(chartYear)))
+            .reduce((sum, r) => sum + r.revenue, 0);
+          const pct = totalTarget > 0 ? Math.min(100, Math.round((totalActual / totalTarget) * 100)) : 0;
+          const remaining = Math.max(0, totalTarget - totalActual);
+          const radius = 70;
+          const circumference = 2 * Math.PI * radius;
+          const strokeDash = (pct / 100) * circumference;
+          return (
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50 flex flex-col justify-between">
+              <h3 className="text-lg font-bold text-gray-900 mb-6">Tiến độ mục tiêu</h3>
+              <div className="flex flex-col items-center flex-1 justify-center gap-6">
+                <div className="relative w-44 h-44">
+                  <svg viewBox="0 0 180 180" className="w-full h-full -rotate-90">
+                    <circle cx="90" cy="90" r={radius} fill="none" stroke="#e0e7ff" strokeWidth="14" strokeLinecap="round" />
+                    <circle
+                      cx="90" cy="90" r={radius} fill="none"
+                      stroke="#6366f1" strokeWidth="14" strokeLinecap="round"
+                      strokeDasharray={`${strokeDash} ${circumference}`}
+                      style={{ transition: 'stroke-dasharray 0.6s ease' }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-3xl font-black text-gray-900">{pct}%</span>
+                    <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mt-0.5">Hoàn thành</span>
+                  </div>
+                </div>
+                <div className="w-full space-y-3">
+                  <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <span>Còn lại</span>
+                    <span className="text-gray-700">{remaining.toLocaleString('vi-VN')} VNĐ</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="flex justify-between text-[11px] font-medium text-gray-400">
+                    <span>Thực hiện: <span className="text-indigo-600 font-bold">{totalActual.toLocaleString('vi-VN')}</span></span>
+                    <span>Mục tiêu: <span className="text-gray-600 font-bold">{totalTarget.toLocaleString('vi-VN')}</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Employee Revenue Bar Chart - Expanded to Full Width */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50 lg:col-span-2">
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50 lg:col-span-3">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
             <div>
               <h3 className="text-lg font-bold text-gray-900">Doanh số theo nhân viên (Phân tích theo nguồn)</h3>
