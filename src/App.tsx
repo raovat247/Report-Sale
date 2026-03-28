@@ -179,8 +179,8 @@ function Layout({ children, user, settings }: { children: React.ReactNode; user:
   };
 
   const navItems = [
-    { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'sales'] },
     { label: 'Dashboard Tổng', path: '/general-dashboard', icon: <BarChart3 className="w-5 h-5" />, roles: ['admin', 'sales'] },
+    { label: 'Date Report', path: '/dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'sales'] },
     { label: 'Bảng xếp hạng', path: '/leaderboard', icon: <Trophy className="w-5 h-5" />, roles: ['admin', 'sales'] },
     { label: 'Mục tiêu', path: '/targets', icon: <Target className="w-5 h-5" />, roles: ['admin'] },
     { label: 'Danh sách đối tác', path: '/partners', icon: <Users className="w-5 h-5" />, roles: ['admin', 'sales'] },
