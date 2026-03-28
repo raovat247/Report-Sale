@@ -195,12 +195,12 @@ function Layout({ children, user, settings }: { children: React.ReactNode; user:
     <div className="min-h-screen bg-main-bg flex flex-col md:flex-row">
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-100 transform transition-all duration-300 ease-in-out md:relative md:translate-x-0
+        fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-100 transform transition-all duration-300 ease-in-out md:sticky md:top-0 md:h-screen md:translate-x-0
         ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         ${isSidebarCollapsed ? 'md:w-24' : 'md:w-72'}
         w-72
       `}>
-        <div className="h-full flex flex-col p-6 overflow-hidden">
+        <div className="h-full flex flex-col p-6 overflow-y-auto overflow-x-hidden">
           <div className="flex items-center justify-between mb-10">
             <div className="flex items-center gap-3 overflow-hidden">
               <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center">
