@@ -5,7 +5,7 @@ import { MonthlyTarget, UserProfile } from '../types';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend } from 'date-fns';
 import { Save, Plus, Trash2, Users, Target, TrendingUp, Calendar, AlertCircle } from 'lucide-react';
 
-export default function TargetSettings() {
+export default function TargetSettings({ user }: { user: UserProfile }) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [targets, setTargets] = useState<MonthlyTarget[]>([]);
   const [loading, setLoading] = useState(false);
@@ -18,6 +18,8 @@ export default function TargetSettings() {
     mxh: 0,
     zalo: 0,
   });
+
+  const isAdmin = user.role === 'admin';
 
   useEffect(() => {
     fetchUsers();

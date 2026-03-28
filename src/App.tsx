@@ -152,13 +152,13 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard user={user} />} />
             <Route path="/general-dashboard" element={<GeneralDashboard user={user} />} />
             <Route path="/leaderboard" element={<Leaderboard user={user} />} />
-            <Route path="/targets" element={<TargetSettings />} />
-            <Route path="/partners" element={<PartnerList />} />
-            <Route path="/social-posts" element={<SocialPostList />} />
-            <Route path="/users" element={<UserManagement />} />
+            <Route path="/targets" element={<TargetSettings user={user} />} />
+            <Route path="/partners" element={<PartnerList user={user} />} />
+            <Route path="/social-posts" element={<SocialPostList user={user} />} />
+            <Route path="/users" element={<UserManagement user={user} />} />
             <Route path="/history" element={<ReportHistory user={user} />} />
             <Route path="/profile" element={<ProfileSettings user={user} onUserUpdate={setUser} />} />
-            <Route path="/settings" element={<SystemSettings />} />
+            <Route path="/settings" element={<SystemSettings user={user} />} />
           </Routes>
         </Layout>
       </Router>

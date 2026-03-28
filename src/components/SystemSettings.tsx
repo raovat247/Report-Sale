@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db, storage } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { AppSetting } from '../types';
+import { AppSetting, UserProfile } from '../types';
 import { Save, Image as ImageIcon, Type, Upload, X } from 'lucide-react';
 
-export default function Settings() {
+export default function Settings({ user }: { user: UserProfile }) {
   const [settings, setSettings] = useState<AppSetting>({
     appName: 'MBI Team 69',
     logoUrl: '',
@@ -16,6 +16,8 @@ export default function Settings() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isAdmin = user.role === 'admin';
 
   useEffect(() => {
     const fetchSettings = async () => {

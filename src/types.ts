@@ -68,3 +68,14 @@ export interface GeneralRevenueRecord {
   revenue: number; // Doanh số
   createdAt: string;
 }
+
+export interface PartnerDirectory {
+  id?: string;
+  name: string;
+  type: string;
+  userId?: string;
+  userName?: string;
+  status: 'introduced' | 'not_introduced';
+  contractStatus: 'signed' | 'not_signed';
+  createdAt: string;
+}

@@ -11,11 +11,13 @@ interface PostEntry {
   date: string;
 }
 
-export default function SocialPostList() {
+export default function SocialPostList({ user }: { user: UserProfile }) {
   const [posts, setPosts] = useState<PostEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+
+  const isAdmin = user.role === 'admin';
 
   useEffect(() => {
     fetchPosts();
@@ -27,13 +29,17 @@ export default function SocialPostList() {
       const start = startOfMonth(new Date(selectedMonth)).toISOString();
       const end = endOfMonth(new Date(selectedMonth)).toISOString();
 
-      // Fetch all reports for the month
-      const q = query(
+      // Fetch reports for the month
+      let q = query(
         collection(db, 'daily_reports'),
         where('date', '>=', start),
         where('date', '<=', end),
         orderBy('date', 'desc')
       );
+
+      if (!isAdmin) {
+        q = query(q, where('userId', '==', user.uid));
+      }
       
       const querySnapshot = await getDocs(q);
       const reports = querySnapshot.docs.map(doc => doc.data() as DailyReport);

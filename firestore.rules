@@ -117,6 +117,11 @@ service cloud.firestore {
              (!('companyName' in data) || (data.companyName is string && data.companyName.size() < 200));
     }
 
+    function isValidPartner(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.type is string && data.type.size() > 0 && data.type.size() < 100;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -168,6 +173,11 @@ service cloud.firestore {
       allow create: if isAdmin() && isValidGeneralRevenue(request.resource.data);
       allow update: if isAdmin() && isValidGeneralRevenue(request.resource.data);
       allow delete: if isAdmin();
+    }
+
+    match /partners_directory/{partnerId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isValidPartner(request.resource.data);
     }
   }
 }

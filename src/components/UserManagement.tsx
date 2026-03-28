@@ -24,7 +24,7 @@ import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 
-export default function UserManagement() {
+export default function UserManagement({ user }: { user: UserProfile }) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,6 +32,8 @@ export default function UserManagement() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+
+  const isAdmin = user.role === 'admin';
 
   useEffect(() => {
     fetchUsers();
