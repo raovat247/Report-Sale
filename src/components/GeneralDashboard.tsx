@@ -30,6 +30,7 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [monthlyTargetsMap, setMonthlyTargetsMap] = useState<{ [month: string]: number }>({});
   const [dailyReports, setDailyReports] = useState<any[]>([]);
+  const [partnerCount, setPartnerCount] = useState(0);
   const chartYear = new Date().getFullYear();
 
   const isAdmin = user.role === 'admin';
@@ -49,6 +50,7 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
     fetchRecords();
     fetchMonthlyTargets();
     fetchDailyReports();
+    getDocs(collection(db, 'partners_directory')).then(snap => setPartnerCount(snap.size)).catch(() => {});
   }, []);
 
   const fetchDailyReports = async () => {
@@ -559,8 +561,8 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xl font-black text-gray-900">{stats.uniqueEmployees}</p>
-            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Nhân viên</h4>
+            <p className="text-xl font-black text-gray-900">{partnerCount}</p>
+            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Đối tác</h4>
           </div>
         </div>
       </div>
