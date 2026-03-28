@@ -4,9 +4,10 @@ import { collection, getDocs, writeBatch, doc, query, orderBy, where } from 'fir
 import { GeneralRevenueRecord, UserProfile } from '../types';
 import { format, parse, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
 import * as XLSX from 'xlsx';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-  LineChart, Line, PieChart, Pie, Cell, AreaChart, Area
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
 import { 
   Upload, FileSpreadsheet, TrendingUp, Users, DollarSign, PieChart as PieChartIcon, 
@@ -28,6 +29,7 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
   const [timeRange, setTimeRange] = useState<'month' | 'year' | 'all'>('all');
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [monthlyTargetsMap, setMonthlyTargetsMap] = useState<{ [month: string]: number }>({});
+  const [dailyReports, setDailyReports] = useState<any[]>([]);
   const chartYear = new Date().getFullYear();
 
   const isAdmin = user.role === 'admin';
@@ -46,7 +48,17 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
   useEffect(() => {
     fetchRecords();
     fetchMonthlyTargets();
+    fetchDailyReports();
   }, []);
+
+  const fetchDailyReports = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'daily_reports'));
+      setDailyReports(snap.docs.map(d => d.data()));
+    } catch (err) {
+      console.error('Failed to fetch daily reports', err);
+    }
+  };
 
   const fetchMonthlyTargets = async () => {
     try {
@@ -362,6 +374,50 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
     return { totalRevenue, totalOrders, avgOrder, uniqueEmployees };
   }, [filteredRecords]);
 
+  const radarData = useMemo(() => {
+    const employees = Array.from(new Set(filteredRecords.map(r => r.employeeName)));
+    if (employees.length === 0) return { axes: [], employees: [] };
+
+    // Aggregate per employee
+    const agg: Record<string, { revenue: number; orders: number; sources: Set<string>; avgOrder: number; days: Set<string> }> = {};
+    filteredRecords.forEach(r => {
+      if (!agg[r.employeeName]) agg[r.employeeName] = { revenue: 0, orders: 0, sources: new Set(), avgOrder: 0, days: new Set() };
+      agg[r.employeeName].revenue += r.revenue;
+      agg[r.employeeName].orders += 1;
+      agg[r.employeeName].sources.add(r.source);
+      agg[r.employeeName].days.add(r.date);
+    });
+    employees.forEach(e => {
+      agg[e].avgOrder = agg[e].orders > 0 ? agg[e].revenue / agg[e].orders : 0;
+    });
+
+    const metrics = [
+      { label: 'Doanh số', key: 'revenue' },
+      { label: 'Số đơn', key: 'orders' },
+      { label: 'Đa dạng nguồn', key: 'sources' },
+      { label: 'Giá trị TB', key: 'avgOrder' },
+      { label: 'Ngày làm việc', key: 'days' },
+    ];
+
+    const rawByMetric: Record<string, number[]> = {};
+    metrics.forEach(m => {
+      rawByMetric[m.key] = employees.map(e => {
+        const v = agg[e][m.key as keyof typeof agg[string]];
+        return typeof v === 'number' ? v : (v as Set<string>).size;
+      });
+    });
+
+    const axes = metrics.map(m => {
+      const vals = rawByMetric[m.key];
+      const max = Math.max(...vals, 1);
+      const row: any = { metric: m.label };
+      employees.forEach((e, i) => { row[e] = Math.round((vals[i] / max) * 100); });
+      return row;
+    });
+
+    return { axes, employees };
+  }, [filteredRecords]);
+
   const [showConfirmClear, setShowConfirmClear] = useState(false);
 
   const clearAllData = async () => {
@@ -608,8 +664,8 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
           );
         })()}
 
-        {/* Employee Revenue Bar Chart - Expanded to Full Width */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50 lg:col-span-3">
+        {/* Employee Revenue Bar Chart */}
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50 lg:col-span-2">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
             <div>
               <h3 className="text-lg font-bold text-gray-900">Doanh số theo nhân viên (Phân tích theo nguồn)</h3>
@@ -674,6 +730,47 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
                 ))}
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Employee Performance Radar Chart */}
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50 lg:col-span-1">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Hiệu suất nhân viên</h3>
+              <p className="text-xs text-gray-400 mt-0.5">So sánh đa chiều (% so với max)</p>
+            </div>
+          </div>
+          <div className="h-[340px]">
+            {radarData.employees.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={radarData.axes}>
+                  <PolarGrid stroke="#f3f4f6" />
+                  <PolarAngleAxis dataKey="metric" tick={{ fontSize: 11, fill: '#6b7280', fontWeight: 600 }} />
+                  <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9, fill: '#d1d5db' }} tickCount={4} />
+                  {radarData.employees.slice(0, 7).map((emp, i) => (
+                    <Radar
+                      key={emp}
+                      name={emp}
+                      dataKey={emp}
+                      stroke={COLORS[i % COLORS.length]}
+                      fill={COLORS[i % COLORS.length]}
+                      fillOpacity={0.15}
+                      strokeWidth={2}
+                    />
+                  ))}
+                  <Tooltip
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
+                    formatter={(v: any) => [`${v}%`]}
+                  />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '11px', fontWeight: '600' }} />
+                </RadarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-400 text-sm font-medium">
+                Chưa có dữ liệu
+              </div>
+            )}
           </div>
         </div>
 
