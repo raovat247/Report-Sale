@@ -865,7 +865,7 @@ export default function PartnerList({ user }: { user: UserProfile }) {
                               <>
                                 <button
                                   onClick={() => setEditingPartner(p)}
-                                  className="p-1.5 text-gray-400 hover:text-primary transition-colors"
+                                  className="p-1.5 text-indigo-500 hover:text-primary transition-colors"
                                   title="Chỉnh sửa"
                                 >
                                   <Edit className="w-3.5 h-3.5" />
@@ -873,7 +873,7 @@ export default function PartnerList({ user }: { user: UserProfile }) {
                                 {isAdmin && (
                                   <button
                                     onClick={() => setDeleteConfirmId(p.id!)}
-                                    className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                                    className="p-1.5 text-red-400 hover:text-red-600 transition-colors"
                                     title="Xóa"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
