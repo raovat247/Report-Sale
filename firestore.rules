@@ -177,7 +177,8 @@ service cloud.firestore {
 
     match /partners_directory/{partnerId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() && isValidPartner(request.resource.data);
+      allow create, update: if isAdmin() && isValidPartner(request.resource.data);
+      allow delete: if isAdmin();
     }
   }
 }
