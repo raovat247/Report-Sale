@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, getDocs, writeBatch, doc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, doc, query, orderBy, where } from 'firebase/firestore';
 import { GeneralRevenueRecord, UserProfile } from '../types';
 import { format, parse, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -27,6 +27,8 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
   const [importing, setImporting] = useState(false);
   const [timeRange, setTimeRange] = useState<'month' | 'year' | 'all'>('all');
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [monthlyTargetsMap, setMonthlyTargetsMap] = useState<{ [month: string]: number }>({});
+  const chartYear = new Date().getFullYear();
 
   const isAdmin = user.role === 'admin';
 
@@ -43,7 +45,24 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
 
   useEffect(() => {
     fetchRecords();
+    fetchMonthlyTargets();
   }, []);
+
+  const fetchMonthlyTargets = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'monthly_targets'));
+      const map: { [month: string]: number } = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (data.month && data.revenue) {
+          map[data.month] = (map[data.month] || 0) + data.revenue;
+        }
+      });
+      setMonthlyTargetsMap(map);
+    } catch (err) {
+      console.error('Failed to fetch monthly targets', err);
+    }
+  };
 
   const fetchRecords = async () => {
     setLoading(true);
@@ -279,20 +298,21 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
   }, [filteredRecords, selectedSources]);
 
   const monthlyData = useMemo(() => {
-    const map: { [key: string]: number } = {};
-    filteredRecords.forEach(r => {
-      const month = r.date.substring(0, 7); // YYYY-MM
-      map[month] = (map[month] || 0) + r.revenue;
+    const actualMap: { [key: string]: number } = {};
+    records.forEach(r => {
+      const month = r.date.substring(0, 7);
+      actualMap[month] = (actualMap[month] || 0) + r.revenue;
     });
-    return Object.keys(map).sort().map(monthKey => {
-      const [year, month] = monthKey.split('-');
+    return Array.from({ length: 12 }, (_, i) => {
+      const m = String(i + 1).padStart(2, '0');
+      const key = `${chartYear}-${m}`;
       return {
-        month: `Tháng ${month}/${year}`,
-        revenue: map[monthKey],
-        rawMonth: monthKey
+        month: `T${i + 1}`,
+        thucHien: actualMap[key] || 0,
+        mucTieu: monthlyTargetsMap[key] || 0,
       };
     });
-  }, [filteredRecords]);
+  }, [records, monthlyTargetsMap, chartYear]);
 
   const sourceData = useMemo(() => {
     const map: { [key: string]: number } = {};
@@ -561,32 +581,45 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
         </div>
 
         {/* Monthly Revenue Chart */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50">
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50 col-span-full">
           <div className="flex justify-between items-center mb-8">
-            <h3 className="text-lg font-bold text-gray-900">Doanh số theo tháng</h3>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Doanh số theo tháng {chartYear}</h3>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">Mục tiêu vs Thực hiện — 12 tháng</p>
+            </div>
             <TrendingUp className="w-5 h-5 text-gray-400" />
           </div>
-          <div className="h-[300px]">
+          <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData}>
+              <BarChart data={monthlyData} barCategoryGap="20%" barGap={4}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis 
-                  dataKey="month" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fontSize: 10, fill: '#9ca3af'}} 
+                <XAxis
+                  dataKey="month"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: '#9ca3af', fontWeight: 600 }}
                 />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fontSize: 10, fill: '#9ca3af'}} 
-                  tickFormatter={(val) => (val / 1000000).toFixed(1) + 'M'}
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: '#9ca3af' }}
+                  tickFormatter={(val) => val >= 1000000 ? (val / 1000000).toFixed(0) + 'M' : val.toLocaleString()}
                 />
-                <Tooltip 
-                  contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
-                  formatter={(value: any) => [value.toLocaleString('vi-VN') + ' VNĐ', 'Doanh thu']}
+                <Tooltip
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value: any, name: string) => [
+                    value.toLocaleString('vi-VN') + ' VNĐ',
+                    name === 'mucTieu' ? 'Mục tiêu' : 'Thực hiện'
+                  ]}
                 />
-                <Bar dataKey="revenue" fill="#14b8a6" radius={[4, 4, 0, 0]} />
+                <Legend
+                  formatter={(value) => value === 'mucTieu' ? 'Mục tiêu' : 'Thực hiện'}
+                  iconType="circle"
+                  iconSize={8}
+                  wrapperStyle={{ fontSize: '12px', fontWeight: '600' }}
+                />
+                <Bar dataKey="mucTieu" fill="#e0e7ff" radius={[4, 4, 0, 0]} name="mucTieu" />
+                <Bar dataKey="thucHien" fill="#6366f1" radius={[4, 4, 0, 0]} name="thucHien" />
               </BarChart>
             </ResponsiveContainer>
           </div>
