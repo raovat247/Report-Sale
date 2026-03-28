@@ -218,7 +218,8 @@ export default function PartnerList({ user }: { user: UserProfile }) {
       setDeleteConfirmId(null);
       fetchDirectory();
     } catch (err) {
-      toast.error('Lỗi khi xóa đối tác');
+      console.error('Delete partner error:', err);
+      toast.error('Lỗi khi xóa đối tác: ' + (err instanceof Error ? err.message : String(err)));
     }
   };
 
