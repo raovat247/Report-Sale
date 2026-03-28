@@ -511,6 +511,51 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Monthly Revenue Chart */}
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50 col-span-full">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Doanh số theo tháng {chartYear} — Mục tiêu và Thực hiện</h3>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">Tổng mục tiêu toàn đội vs Doanh số thực hiện — 12 tháng</p>
+            </div>
+            <TrendingUp className="w-5 h-5 text-gray-400" />
+          </div>
+          <div className="h-[320px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyData} barCategoryGap="20%" barGap={4}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <XAxis
+                  dataKey="month"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: '#9ca3af', fontWeight: 600 }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: '#9ca3af' }}
+                  tickFormatter={(val) => val >= 1000000 ? (val / 1000000).toFixed(0) + 'M' : val.toLocaleString()}
+                />
+                <Tooltip
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value: any, name: string) => [
+                    value.toLocaleString('vi-VN') + ' VNĐ',
+                    name === 'mucTieu' ? 'Mục tiêu' : 'Thực hiện'
+                  ]}
+                />
+                <Legend
+                  formatter={(value) => value === 'mucTieu' ? 'Mục tiêu' : 'Thực hiện'}
+                  iconType="circle"
+                  iconSize={8}
+                  wrapperStyle={{ fontSize: '12px', fontWeight: '600' }}
+                />
+                <Bar dataKey="mucTieu" fill="#e0e7ff" radius={[4, 4, 0, 0]} name="mucTieu" />
+                <Bar dataKey="thucHien" fill="#6366f1" radius={[4, 4, 0, 0]} name="thucHien" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
         {/* Employee Revenue Bar Chart - Expanded to Full Width */}
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50 lg:col-span-2">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -575,51 +620,6 @@ export default function GeneralDashboard({ user }: GeneralDashboardProps) {
                     barSize={20} 
                   />
                 ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Monthly Revenue Chart */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50 col-span-full">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h3 className="text-lg font-bold text-gray-900">Doanh số theo tháng {chartYear}</h3>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">Mục tiêu vs Thực hiện — 12 tháng</p>
-            </div>
-            <TrendingUp className="w-5 h-5 text-gray-400" />
-          </div>
-          <div className="h-[320px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData} barCategoryGap="20%" barGap={4}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis
-                  dataKey="month"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: '#9ca3af', fontWeight: 600 }}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 10, fill: '#9ca3af' }}
-                  tickFormatter={(val) => val >= 1000000 ? (val / 1000000).toFixed(0) + 'M' : val.toLocaleString()}
-                />
-                <Tooltip
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value: any, name: string) => [
-                    value.toLocaleString('vi-VN') + ' VNĐ',
-                    name === 'mucTieu' ? 'Mục tiêu' : 'Thực hiện'
-                  ]}
-                />
-                <Legend
-                  formatter={(value) => value === 'mucTieu' ? 'Mục tiêu' : 'Thực hiện'}
-                  iconType="circle"
-                  iconSize={8}
-                  wrapperStyle={{ fontSize: '12px', fontWeight: '600' }}
-                />
-                <Bar dataKey="mucTieu" fill="#e0e7ff" radius={[4, 4, 0, 0]} name="mucTieu" />
-                <Bar dataKey="thucHien" fill="#6366f1" radius={[4, 4, 0, 0]} name="thucHien" />
               </BarChart>
             </ResponsiveContainer>
           </div>
