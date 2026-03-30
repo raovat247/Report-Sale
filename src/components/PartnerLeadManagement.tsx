@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../firebase';
 import { toast } from 'sonner';
 import {
@@ -300,6 +300,27 @@ interface LeadTableProps {
 }
 
 function LeadTable({ leads, onView, onDelete, isAdmin, showClaim, onClaim }: LeadTableProps) {
+  const COL_HEADERS = ['Tên KH', 'Chức vụ', 'SDT', 'Nguồn', 'Nhóm', 'Nhân viên', 'Tình trạng', 'Liên hệ', ''];
+  const [colWidths, setColWidths] = useState([200, 140, 120, 120, 120, 150, 130, 80, 90]);
+  const resizing = useRef<{ col: number; startX: number; startW: number } | null>(null);
+
+  const handleResizeMouseDown = (e: React.MouseEvent, colIndex: number) => {
+    e.preventDefault();
+    resizing.current = { col: colIndex, startX: e.clientX, startW: colWidths[colIndex] };
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!resizing.current) return;
+      const newW = Math.max(60, resizing.current.startW + ev.clientX - resizing.current.startX);
+      setColWidths(prev => prev.map((w, i) => i === resizing.current!.col ? newW : w));
+    };
+    const onMouseUp = () => {
+      resizing.current = null;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
   if (leads.length === 0) {
     return (
       <div className="text-center py-16 text-gray-400">
@@ -311,23 +332,37 @@ function LeadTable({ leads, onView, onDelete, isAdmin, showClaim, onClaim }: Lea
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="text-sm" style={{ tableLayout: 'fixed', width: colWidths.reduce((a, b) => a + b, 0) }}>
+        <colgroup>
+          {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+        </colgroup>
         <thead>
           <tr className="border-b border-gray-100">
-            {['Tên KH', 'Chức vụ', 'SDT', 'Nguồn', 'Nhóm', 'Nhân viên', 'Tình trạng', 'Liên hệ', ''].map(h => (
-              <th key={h} className="text-left text-xs text-gray-500 uppercase font-semibold pb-3 pr-4 whitespace-nowrap">{h}</th>
+            {COL_HEADERS.map((h, i) => (
+              <th key={i} className="relative text-left text-xs text-gray-500 uppercase font-semibold pb-3 pr-4 whitespace-nowrap overflow-hidden" style={{ width: colWidths[i] }}>
+                {h}
+                {i < COL_HEADERS.length - 1 && (
+                  <div
+                    onMouseDown={(e) => handleResizeMouseDown(e, i)}
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize flex items-center justify-center group"
+                    style={{ userSelect: 'none' }}
+                  >
+                    <div className="w-0.5 h-4 bg-gray-200 group-hover:bg-primary rounded-full transition-colors" />
+                  </div>
+                )}
+              </th>
             ))}
           </tr>
         </thead>
         <tbody>
           {leads.map(lead => (
             <tr key={lead.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-              <td className="py-3 pr-4 font-semibold text-gray-900 max-w-[160px] truncate">{lead.tenKhachHang}</td>
-              <td className="py-3 pr-4 text-gray-500 max-w-[120px] truncate">{lead.tenChucVu || '—'}</td>
-              <td className="py-3 pr-4 text-gray-500 whitespace-nowrap">{lead.sdt || '—'}</td>
-              <td className="py-3 pr-4 text-gray-500 max-w-[100px] truncate">{lead.nguon || '—'}</td>
-              <td className="py-3 pr-4 text-gray-500 max-w-[100px] truncate">{lead.nhom || '—'}</td>
-              <td className="py-3 pr-4 text-gray-500 whitespace-nowrap">{lead.assignedToName || <span className="italic text-gray-300">Chưa phân công</span>}</td>
+              <td className="py-3 pr-4 font-semibold text-gray-900 overflow-hidden" style={{ maxWidth: colWidths[0] }}><span className="block truncate" title={lead.tenKhachHang}>{lead.tenKhachHang}</span></td>
+              <td className="py-3 pr-4 text-gray-500 overflow-hidden" style={{ maxWidth: colWidths[1] }}><span className="block truncate" title={lead.tenChucVu || ''}>{lead.tenChucVu || '—'}</span></td>
+              <td className="py-3 pr-4 text-gray-500 overflow-hidden"><span className="block truncate">{lead.sdt || '—'}</span></td>
+              <td className="py-3 pr-4 text-gray-500 overflow-hidden"><span className="block truncate" title={lead.nguon || ''}>{lead.nguon || '—'}</span></td>
+              <td className="py-3 pr-4 text-gray-500 overflow-hidden"><span className="block truncate" title={lead.nhom || ''}>{lead.nhom || '—'}</span></td>
+              <td className="py-3 pr-4 text-gray-500 overflow-hidden"><span className="block truncate">{lead.assignedToName || <span className="italic text-gray-300">Chưa phân công</span>}</span></td>
               <td className="py-3 pr-4">
                 <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap ${statusBadge(lead.tinhTrang)}`}>
                   {lead.tinhTrang}
