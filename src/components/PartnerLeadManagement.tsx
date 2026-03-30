@@ -26,6 +26,21 @@ interface FirestoreUser {
 
 const TINH_TRANG_OPTIONS: TinhTrang[] = ['ĐANG LÀM', 'THÀNH CÔNG', 'THẤT BẠI', 'TIỀM NĂNG', 'CHƯA XỬ LÝ'];
 
+const LY_DO_TU_CHOI_OPTIONS = [
+  'Không tìm được thông tin liên hệ',
+  'Liên hệ nhiều lần không phản hồi',
+  'Thông tin liên hệ không được',
+  'Đã làm đối tác với đơn vị khác',
+  'Sản phẩm chưa đáp ứng được',
+  'Chính sách không đủ hấp dẫn',
+  'Yêu cầu kỹ thuật phức tạp',
+  'Rủi ro pháp lý và trách nhiệm',
+  'Không phù hợp với mô hình kinh doanh của đối tác',
+  'Thiếu niềm tin vào sản phẩm và thương hiệu',
+  'Thiếu nguồn lực để triển khai',
+  'Chưa thấy nhu cầu từ khách hàng',
+];
+
 const statusBadge = (status: TinhTrang) => {
   const map: Record<TinhTrang, string> = {
     'THÀNH CÔNG': 'bg-green-100 text-green-700',
@@ -170,26 +185,41 @@ function LeadDetailModal({ lead, user, onClose, onSaved, users }: LeadDetailModa
             <label className="text-xs text-gray-500 uppercase font-semibold block mb-1">Tình trạng</label>
             <select
               value={form.tinhTrang}
-              onChange={e => setForm(prev => ({ ...prev, tinhTrang: e.target.value as TinhTrang }))}
+              onChange={e => {
+                const val = e.target.value as TinhTrang;
+                if (val === 'THẤT BẠI' && (form.lienHe?.length ?? 0) < 3) {
+                  toast.error('Cần tối thiểu 3 lần liên hệ trước khi chọn Thất bại');
+                  return;
+                }
+                setForm(prev => ({ ...prev, tinhTrang: val }));
+              }}
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
             >
               {TINH_TRANG_OPTIONS.map(o => (
                 <option key={o} value={o}>{o}</option>
               ))}
             </select>
+            {form.tinhTrang !== 'THẤT BẠI' && (form.lienHe?.length ?? 0) < 3 && (
+              <p className="text-xs text-amber-500 mt-1">
+                Đã liên hệ {form.lienHe?.length ?? 0}/3 lần — cần đủ 3 lần để chọn Thất bại
+              </p>
+            )}
           </div>
 
           {/* Lý do từ chối */}
           {form.tinhTrang === 'THẤT BẠI' && (
             <div>
-              <label className="text-xs text-gray-500 uppercase font-semibold block mb-1">Lý do từ chối</label>
-              <input
-                type="text"
+              <label className="text-xs text-gray-500 uppercase font-semibold block mb-1">Lý do từ chối <span className="text-red-500">*</span></label>
+              <select
                 value={form.lyDoTuChoi || ''}
                 onChange={e => setForm(prev => ({ ...prev, lyDoTuChoi: e.target.value }))}
-                placeholder="Nhập lý do từ chối..."
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
-              />
+              >
+                <option value="">— Chọn lý do —</option>
+                {LY_DO_TU_CHOI_OPTIONS.map(o => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
             </div>
           )}
 
