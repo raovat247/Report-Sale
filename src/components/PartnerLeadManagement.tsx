@@ -360,6 +360,14 @@ function LeadTable({ leads, onView, onDelete, isAdmin, showClaim, onClaim }: Lea
     );
   }
 
+  const stickyLastCol: React.CSSProperties = {
+    position: 'sticky',
+    right: 0,
+    background: 'white',
+    zIndex: 1,
+    boxShadow: '-2px 0 6px -2px rgba(0,0,0,0.06)',
+  };
+
   return (
     <div className="overflow-x-auto">
       <table className="text-sm" style={{ tableLayout: 'fixed', width: colWidths.reduce((a, b) => a + b, 0) }}>
@@ -369,7 +377,11 @@ function LeadTable({ leads, onView, onDelete, isAdmin, showClaim, onClaim }: Lea
         <thead>
           <tr className="border-b border-gray-100">
             {COL_HEADERS.map((h, i) => (
-              <th key={i} className="relative text-left text-xs text-gray-500 uppercase font-semibold pb-3 pr-4 whitespace-nowrap overflow-hidden" style={{ width: colWidths[i] }}>
+              <th
+                key={i}
+                className="relative text-left text-xs text-gray-500 uppercase font-semibold pb-3 pr-4 whitespace-nowrap overflow-hidden"
+                style={i === COL_HEADERS.length - 1 ? { ...stickyLastCol, width: colWidths[i] } : { width: colWidths[i] }}
+              >
                 {h}
                 {i < COL_HEADERS.length - 1 && (
                   <div
@@ -401,7 +413,7 @@ function LeadTable({ leads, onView, onDelete, isAdmin, showClaim, onClaim }: Lea
               <td className="py-3 pr-4 text-center">
                 <span className="font-bold text-primary">{lead.lienHe?.length ?? 0}</span>
               </td>
-              <td className="py-3 whitespace-nowrap flex items-center gap-1">
+              <td className="py-3 whitespace-nowrap flex items-center gap-1" style={stickyLastCol}>
                 <button
                   onClick={() => onView(lead)}
                   className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
