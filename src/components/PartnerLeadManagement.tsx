@@ -330,7 +330,7 @@ interface LeadTableProps {
 }
 
 function LeadTable({ leads, onView, onDelete, isAdmin, showClaim, onClaim }: LeadTableProps) {
-  const COL_HEADERS = ['Tên KH', 'Chức vụ', 'SDT', 'Nguồn', 'Nhóm', 'Nhân viên', 'Tình trạng', 'Liên hệ', ''];
+  const COL_HEADERS = ['Tên KH', 'Chức vụ', 'SDT', 'Nguồn', 'Nhóm', 'Nhân viên', 'Tình trạng', 'Liên hệ', 'Thao tác'];
   const [colWidths, setColWidths] = useState([200, 140, 120, 120, 120, 150, 130, 80, 90]);
   const resizing = useRef<{ col: number; startX: number; startW: number } | null>(null);
 
