@@ -453,17 +453,17 @@ export default function PartnerLeadManagement({ user }: Props) {
   const fetchUnassigned = useCallback(async () => {
     try {
       const { collection, getDocs, query, where, orderBy } = await import('firebase/firestore');
-      const q = query(
-        collection(db, 'partner_leads'),
-        where('assignedTo', '==', null),
-        orderBy('createdAt', 'desc')
-      );
-      const snap = await getDocs(q);
+      const [snapNull, snapEmpty] = await Promise.all([
+        getDocs(query(collection(db, 'partner_leads'), where('assignedTo', '==', null), orderBy('createdAt', 'desc'))),
+        getDocs(query(collection(db, 'partner_leads'), where('assignedTo', '==', ''), orderBy('createdAt', 'desc'))),
+      ]);
       const list: PartnerLead[] = [];
-      snap.forEach(d => list.push({ id: d.id, ...d.data() } as PartnerLead));
+      const seen = new Set<string>();
+      [...snapNull.docs, ...snapEmpty.docs].forEach(d => {
+        if (!seen.has(d.id)) { seen.add(d.id); list.push({ id: d.id, ...d.data() } as PartnerLead); }
+      });
       setUnassignedLeads(list);
     } catch (e) {
-      // Fallback: filter from main leads if null query fails
       setUnassignedLeads(leads.filter(l => !l.assignedTo));
     }
   }, [leads]);
