@@ -606,12 +606,12 @@ export default function PartnerLeadManagement({ user }: Props) {
     const now = new Date().toISOString();
     return {
       tenKhachHang: get('tenKhachHang') || 'Không tên',
-      tenChucVu: get('tenChucVu') || undefined,
-      sdt: get('sdt') || undefined,
-      nguon: get('nguon') || undefined,
-      nhom: get('nhom') || undefined,
-      assignedTo,
-      assignedToName,
+      tenChucVu: get('tenChucVu') || '',
+      sdt: get('sdt') || '',
+      nguon: get('nguon') || '',
+      nhom: get('nhom') || '',
+      assignedTo: assignedTo || '',
+      assignedToName: assignedToName || '',
       tinhTrang,
       lienHe,
       daTraoDoiChinhSach: boolFromExcel(colMap['daTraoDoiChinhSach'] ? row[colMap['daTraoDoiChinhSach']] : ''),
@@ -619,7 +619,7 @@ export default function PartnerLeadManagement({ user }: Props) {
       daTichHop: boolFromExcel(colMap['daTichHop'] ? row[colMap['daTichHop']] : ''),
       daKyHopDong: boolFromExcel(colMap['daKyHopDong'] ? row[colMap['daKyHopDong']] : ''),
       daGioiThieuKH: boolFromExcel(colMap['daGioiThieuKH'] ? row[colMap['daGioiThieuKH']] : ''),
-      lyDoTuChoi: get('lyDoTuChoi') || undefined,
+      lyDoTuChoi: get('lyDoTuChoi') || '',
       createdAt: now,
       updatedAt: now,
     };
