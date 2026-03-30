@@ -370,7 +370,7 @@ function LeadTable({ leads, onView, onDelete, isAdmin, showClaim, onClaim }: Lea
 
   return (
     <div className="overflow-x-auto">
-      <table className="text-sm" style={{ tableLayout: 'fixed', width: colWidths.reduce((a, b) => a + b, 0) }}>
+      <table className="text-sm" style={{ tableLayout: 'fixed', width: '100%', minWidth: colWidths.reduce((a, b) => a + b, 0) }}>
         <colgroup>
           {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
         </colgroup>
