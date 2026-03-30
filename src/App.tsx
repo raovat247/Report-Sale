@@ -15,18 +15,19 @@ import UserManagement from './components/UserManagement';
 import ReportHistory from './components/ReportHistory';
 import Leaderboard from './components/Leaderboard';
 import GeneralDashboard from './components/GeneralDashboard';
+import PartnerLeadManagement from './components/PartnerLeadManagement';
 import ProfileSettings from './components/ProfileSettings';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppSetting } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster } from 'sonner';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  Target, 
-  LogOut, 
-  User as UserIcon, 
-  Menu, 
+import {
+  LayoutDashboard,
+  FileText,
+  Target,
+  LogOut,
+  User as UserIcon,
+  Menu,
   X,
   ChevronRight,
   Search,
@@ -42,7 +43,8 @@ import {
   Clock,
   Trophy,
   BarChart3,
-  Ban
+  Ban,
+  Briefcase
 } from 'lucide-react';
 
 export default function App() {
@@ -159,6 +161,7 @@ export default function App() {
             <Route path="/history" element={<ReportHistory user={user} />} />
             <Route path="/profile" element={<ProfileSettings user={user} onUserUpdate={setUser} />} />
             <Route path="/settings" element={<SystemSettings user={user} />} />
+            <Route path="/lead-partners" element={<PartnerLeadManagement user={user} />} />
           </Routes>
         </Layout>
       </Router>
@@ -184,6 +187,7 @@ function Layout({ children, user, settings }: { children: React.ReactNode; user:
     { label: 'Bảng xếp hạng', path: '/leaderboard', icon: <Trophy className="w-5 h-5" />, roles: ['admin', 'sales'] },
     { label: 'Mục tiêu', path: '/targets', icon: <Target className="w-5 h-5" />, roles: ['admin'] },
     { label: 'Danh sách đối tác', path: '/partners', icon: <Users className="w-5 h-5" />, roles: ['admin', 'sales'] },
+    { label: 'Quản lý Lead', path: '/lead-partners', icon: <Briefcase className="w-5 h-5" />, roles: ['admin', 'sales'] },
     { label: 'Bài đăng MXH', path: '/social-posts', icon: <Share2 className="w-5 h-5" />, roles: ['admin', 'sales'] },
     { label: 'Thành viên', path: '/users', icon: <UserCheck className="w-5 h-5" />, roles: ['admin'] },
     { label: 'Lịch sử', path: '/history', icon: <History className="w-5 h-5" />, roles: ['admin', 'sales'] },

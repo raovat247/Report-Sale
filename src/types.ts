@@ -79,3 +79,24 @@ export interface PartnerDirectory {
   contractStatus: 'signed' | 'not_signed';
   createdAt: string;
 }
+
+export interface PartnerLead {
+  id?: string;
+  tenKhachHang: string;
+  tenChucVu?: string;
+  sdt?: string;
+  nguon?: string;
+  nhom?: string;
+  assignedTo?: string;
+  assignedToName?: string;
+  tinhTrang: 'ĐANG LÀM' | 'THÀNH CÔNG' | 'THẤT BẠI' | 'TIỀM NĂNG' | 'CHƯA XỬ LÝ';
+  lienHe: { lan: number; ngay?: string; noiDung?: string }[];
+  daTraoDoiChinhSach: boolean;
+  daHopDongOnline: boolean;
+  daTichHop: boolean;
+  daKyHopDong: boolean;
+  daGioiThieuKH: boolean;
+  lyDoTuChoi?: string;
+  createdAt: string;
+  updatedAt: string;
+}
