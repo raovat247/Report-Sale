@@ -182,9 +182,9 @@ service cloud.firestore {
     }
 
     match /partner_leads/{leadId} {
-      allow read: if isAuthenticated() && (isAdmin() || resource.data.assignedTo == request.auth.uid || resource.data.assignedTo == null);
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (isAdmin() || resource.data.assignedTo == request.auth.uid || resource.data.assignedTo == null);
+      allow update: if isAuthenticated();
       allow delete: if isAdmin();
     }
   }
