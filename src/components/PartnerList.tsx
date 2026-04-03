@@ -156,7 +156,9 @@ export default function PartnerList({ user }: { user: UserProfile }) {
   const fetchDirectory = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'partners_directory'), orderBy('name', 'asc'));
+      const q = isAdmin
+        ? query(collection(db, 'partners_directory'), orderBy('name', 'asc'))
+        : query(collection(db, 'partners_directory'), where('userId', '==', user.uid), orderBy('name', 'asc'));
       const querySnapshot = await getDocs(q);
       const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PartnerDirectory));
       setDirectory(data);
