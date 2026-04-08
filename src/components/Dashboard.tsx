@@ -169,18 +169,28 @@ export default function Dashboard({ user }: DashboardProps) {
 
   const chartData = useMemo(() => {
     const dataByDate: { [key: string]: any } = {};
-    
+
     reports.forEach(r => {
       if (!dataByDate[r.date]) {
         dataByDate[r.date] = { date: r.date, revenue: 0, leads: 0, partners: 0 };
       }
       dataByDate[r.date].revenue += r.revenue;
       dataByDate[r.date].leads += r.soKHTiemNang;
-      dataByDate[r.date].partners += (r.daiLyCTV?.length || 0);
+    });
+
+    // Count lienHe (xử lý đối tác) per date from partner_leads
+    partnerLeads.forEach(lead => {
+      (lead.lienHe ?? []).forEach(lh => {
+        if (!lh.ngay) return;
+        if (!dataByDate[lh.ngay]) {
+          dataByDate[lh.ngay] = { date: lh.ngay, revenue: 0, leads: 0, partners: 0 };
+        }
+        dataByDate[lh.ngay].partners += 1;
+      });
     });
 
     return Object.values(dataByDate).sort((a, b) => a.date.localeCompare(b.date));
-  }, [reports]);
+  }, [reports, partnerLeads]);
 
   const userPerformance = useMemo(() => {
     const displayUsers = isAdmin ? users : users.filter(u => u.uid === user.uid);
