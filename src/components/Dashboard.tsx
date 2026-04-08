@@ -190,7 +190,7 @@ export default function Dashboard({ user }: DashboardProps) {
       const revenue = userReports.reduce((sum, r) => sum + r.revenue, 0);
       const target = userTarget?.revenue || 0;
       const progress = target > 0 ? (revenue / target) * 100 : 0;
-      
+
       return {
         uid: u.uid,
         name: u.displayName,
@@ -201,6 +201,32 @@ export default function Dashboard({ user }: DashboardProps) {
       };
     });
   }, [users, reports, targets, isAdmin, user.uid]);
+
+  const userPartnerStats = useMemo(() => {
+    let rangeStart: string, rangeEnd: string;
+    if (timeRange === 'month') {
+      rangeStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+      rangeEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+    } else if (timeRange === 'quarter') {
+      rangeStart = format(startOfQuarter(new Date()), 'yyyy-MM-dd');
+      rangeEnd = format(endOfQuarter(new Date()), 'yyyy-MM-dd');
+    } else {
+      rangeStart = format(startOfYear(new Date()), 'yyyy-MM-dd');
+      rangeEnd = format(endOfYear(new Date()), 'yyyy-MM-dd');
+    }
+
+    const displayUsers = isAdmin ? users : users.filter(u => u.uid === user.uid);
+    return displayUsers.map(u => {
+      const userTarget = targets.find(t => t.userId === u.uid);
+      const actual = partnerLeads
+        .filter(lead => lead.assignedTo === u.uid)
+        .reduce((sum, lead) => {
+          return sum + (lead.lienHe ?? []).filter(lh => lh.ngay && lh.ngay >= rangeStart && lh.ngay <= rangeEnd).length;
+        }, 0);
+      const target = userTarget?.partners || 0;
+      return { name: u.displayName, actual, target };
+    });
+  }, [users, partnerLeads, targets, timeRange, isAdmin, user.uid]);
 
   if (loading) {
     return (
@@ -395,6 +421,51 @@ export default function Dashboard({ user }: DashboardProps) {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Two member comparison charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Chart 1: Revenue vs Target per member */}
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50">
+          <h3 className="text-lg font-bold text-gray-900 mb-6">Doanh số vs Mục tiêu</h3>
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={userPerformance} barGap={4} barCategoryGap="30%">
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} tickFormatter={(v) => (v / 1000000).toFixed(0) + 'tr'} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value: any, name: string) => [value.toLocaleString('vi-VN') + ' đ', name === 'revenue' ? 'Doanh số' : 'Mục tiêu']}
+                />
+                <Legend formatter={(v) => v === 'revenue' ? 'Doanh số' : 'Mục tiêu'} />
+                <Bar dataKey="target" fill="#e0e7ff" radius={[6, 6, 0, 0]} name="target" />
+                <Bar dataKey="revenue" fill="#6366f1" radius={[6, 6, 0, 0]} name="revenue" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Chart 2: Partner lead processing vs Target per member */}
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50">
+          <h3 className="text-lg font-bold text-gray-900 mb-6">Đại lý / CTV — Xử lý Lead vs Mục tiêu</h3>
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={userPartnerStats} barGap={4} barCategoryGap="30%">
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value: any, name: string) => [value, name === 'actual' ? 'Đã xử lý' : 'Mục tiêu']}
+                />
+                <Legend formatter={(v) => v === 'actual' ? 'Đã xử lý' : 'Mục tiêu'} />
+                <Bar dataKey="target" fill="#fde68a" radius={[6, 6, 0, 0]} name="target" />
+                <Bar dataKey="actual" fill="#f59e0b" radius={[6, 6, 0, 0]} name="actual" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
