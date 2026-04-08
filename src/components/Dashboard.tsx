@@ -188,32 +188,15 @@ export default function Dashboard({ user }: DashboardProps) {
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-12">
       {/* Header with Time Range Selector */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Thống kê phòng kinh doanh</h1>
-            <p className="text-gray-400 text-sm font-medium">Theo dõi hiệu suất toàn đội</p>
-          </div>
-          {/* Range tabs */}
-          <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100">
-            {(['day', 'week', 'month', 'year'] as const).map((range) => (
-              <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-                  timeRange === range
-                    ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                {range === 'day' ? 'Ngày' : range === 'week' ? 'Tuần' : range === 'month' ? 'Tháng' : 'Năm'}
-              </button>
-            ))}
-          </div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Thống kê phòng kinh doanh</h1>
+          <p className="text-gray-400 text-sm font-medium">Theo dõi hiệu suất toàn đội</p>
         </div>
 
-        {/* Date picker row */}
-        <div className="flex items-center gap-3 bg-white p-3 rounded-2xl shadow-sm border border-gray-100 w-fit">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Date picker */}
+          <div className="flex items-center gap-3 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
           <button
             onClick={() => {
               const ref = parseISO(selectedDate);
@@ -275,6 +258,24 @@ export default function Dashboard({ user }: DashboardProps) {
           >
             <ChevronRight className="w-4 h-4" />
           </button>
+          </div>
+
+          {/* Range tabs */}
+          <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100">
+            {(['day', 'week', 'month', 'year'] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+                  timeRange === range
+                    ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {range === 'day' ? 'Ngày' : range === 'week' ? 'Tuần' : range === 'month' ? 'Tháng' : 'Năm'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
