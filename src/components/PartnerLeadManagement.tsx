@@ -67,6 +67,142 @@ const boolFromExcel = (v: unknown): boolean => {
   return false;
 };
 
+// ─── AddLeadModal ─────────────────────────────────────────────────────────────
+
+interface AddLeadModalProps {
+  user: UserProfile;
+  users: FirestoreUser[];
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function AddLeadModal({ user, users, onClose, onSaved }: AddLeadModalProps) {
+  const isAdmin = user.role === 'admin';
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    tenKhachHang: '',
+    tenChucVu: '',
+    sdt: '',
+    nguon: '',
+    nhom: '',
+    assignedTo: user.uid,
+    assignedToName: user.displayName,
+  });
+
+  const handleSave = async () => {
+    if (!form.tenKhachHang.trim()) { toast.error('Vui lòng nhập tên khách hàng'); return; }
+    setSaving(true);
+    try {
+      const { collection, addDoc } = await import('firebase/firestore');
+      const now = new Date().toISOString();
+      await addDoc(collection(db, 'partner_leads'), {
+        tenKhachHang: form.tenKhachHang.trim(),
+        tenChucVu: form.tenChucVu.trim(),
+        sdt: form.sdt.trim(),
+        nguon: form.nguon.trim(),
+        nhom: form.nhom.trim(),
+        assignedTo: form.assignedTo,
+        assignedToName: form.assignedToName,
+        tinhTrang: 'CHƯA XỬ LÝ' as TinhTrang,
+        lienHe: [],
+        daTraoDoiChinhSach: false,
+        daHopDongOnline: false,
+        daTichHop: false,
+        daKyHopDong: false,
+        daGioiThieuKH: false,
+        lyDoTuChoi: '',
+        createdAt: now,
+        updatedAt: now,
+      });
+      toast.success('Đã thêm lead mới');
+      onSaved();
+      onClose();
+    } catch (e) {
+      toast.error('Lỗi: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <UserPlus className="w-5 h-5 text-primary" />
+            Thêm Lead mới
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="text-xs text-gray-500 uppercase font-semibold block mb-1">Tên khách hàng <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={form.tenKhachHang}
+                onChange={e => setForm(p => ({ ...p, tenKhachHang: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/30"
+                placeholder="Nguyễn Văn A"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 uppercase font-semibold block mb-1">Chức vụ</label>
+              <input type="text" value={form.tenChucVu} onChange={e => setForm(p => ({ ...p, tenChucVu: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" placeholder="Giám đốc" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 uppercase font-semibold block mb-1">Số điện thoại</label>
+              <input type="text" value={form.sdt} onChange={e => setForm(p => ({ ...p, sdt: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" placeholder="090..." />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 uppercase font-semibold block mb-1">Nguồn</label>
+              <input type="text" value={form.nguon} onChange={e => setForm(p => ({ ...p, nguon: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" placeholder="Facebook, Zalo..." />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 uppercase font-semibold block mb-1">Nhóm</label>
+              <input type="text" value={form.nhom} onChange={e => setForm(p => ({ ...p, nhom: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" placeholder="Đại lý, CTV..." />
+            </div>
+            {isAdmin && (
+              <div className="col-span-2">
+                <label className="text-xs text-gray-500 uppercase font-semibold block mb-1">Phân công cho</label>
+                <select
+                  value={form.assignedTo}
+                  onChange={e => {
+                    const u = users.find(x => x.uid === e.target.value);
+                    setForm(p => ({ ...p, assignedTo: e.target.value, assignedToName: u?.displayName || '' }));
+                  }}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                >
+                  {users.map(u => <option key={u.uid} value={u.uid}>{u.displayName}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 p-6 border-t border-gray-100">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+            Hủy
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            className="px-6 py-2 text-sm font-bold text-white bg-primary rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center gap-2">
+            {saving && <RefreshCw className="w-4 h-4 animate-spin" />}
+            Thêm Lead
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── LeadDetailModal ─────────────────────────────────────────────────────────
 
 interface LeadDetailModalProps {
@@ -130,34 +266,48 @@ function LeadDetailModal({ lead, user, onClose, onSaved, users }: LeadDetailModa
 
         <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
           {/* Basic Info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-gray-500 uppercase font-semibold">Tên khách hàng</label>
-              <p className="font-bold text-gray-900 mt-1">{form.tenKhachHang}</p>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 uppercase font-semibold">Chức vụ</label>
-              <p className="text-gray-700 mt-1">{form.tenChucVu || '—'}</p>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 uppercase font-semibold">SDT</label>
-              <p className="text-gray-700 mt-1 flex items-center gap-1">
-                {form.sdt ? <><Phone className="w-3.5 h-3.5 text-gray-400" />{form.sdt}</> : '—'}
-              </p>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 uppercase font-semibold">Nguồn</label>
-              <p className="text-gray-700 mt-1">{form.nguon || '—'}</p>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 uppercase font-semibold">Nhóm</label>
-              <p className="text-gray-700 mt-1">{form.nhom || '—'}</p>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 uppercase font-semibold">Nhân viên</label>
-              <p className="text-gray-700 mt-1">{form.assignedToName || 'Chưa phân công'}</p>
-            </div>
-          </div>
+          {(() => {
+            const canEdit = isAdmin || form.assignedTo === user.uid;
+            return (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="text-xs text-gray-500 uppercase font-semibold block mb-1">Tên khách hàng</label>
+                  {canEdit ? (
+                    <input
+                      type="text"
+                      value={form.tenKhachHang}
+                      onChange={e => setForm(prev => ({ ...prev, tenKhachHang: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 focus:border-primary/30"
+                    />
+                  ) : (
+                    <p className="font-bold text-gray-900 mt-1">{form.tenKhachHang}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 uppercase font-semibold">Chức vụ</label>
+                  <p className="text-gray-700 mt-1">{form.tenChucVu || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 uppercase font-semibold">SDT</label>
+                  <p className="text-gray-700 mt-1 flex items-center gap-1">
+                    {form.sdt ? <><Phone className="w-3.5 h-3.5 text-gray-400" />{form.sdt}</> : '—'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 uppercase font-semibold">Nguồn</label>
+                  <p className="text-gray-700 mt-1">{form.nguon || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 uppercase font-semibold">Nhóm</label>
+                  <p className="text-gray-700 mt-1">{form.nhom || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 uppercase font-semibold">Nhân viên</label>
+                  <p className="text-gray-700 mt-1">{form.assignedToName || 'Chưa phân công'}</p>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Reassign (admin only) */}
           {isAdmin && (
@@ -468,6 +618,7 @@ export default function PartnerLeadManagement({ user }: Props) {
 
   // Detail modal
   const [selectedLead, setSelectedLead] = useState<PartnerLead | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Import state
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -808,10 +959,28 @@ export default function PartnerLeadManagement({ user }: Props) {
           </h1>
           <p className="text-sm text-gray-500 mt-1">CRM quản lý lead và theo dõi tiến trình chuyển đổi</p>
         </div>
-        <button onClick={fetchLeads} className="p-2 text-gray-400 hover:bg-gray-100 rounded-xl transition-colors" title="Làm mới">
-          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+          >
+            <Plus className="w-4 h-4" />
+            Thêm Lead
+          </button>
+          <button onClick={fetchLeads} className="p-2 text-gray-400 hover:bg-gray-100 rounded-xl transition-colors" title="Làm mới">
+            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
+
+      {showAddModal && (
+        <AddLeadModal
+          user={user}
+          users={users}
+          onClose={() => setShowAddModal(false)}
+          onSaved={() => { fetchLeads(); setActiveTab('list'); }}
+        />
+      )}
 
       {/* Tabs */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
