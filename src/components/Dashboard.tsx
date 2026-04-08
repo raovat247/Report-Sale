@@ -2,19 +2,42 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { DailyReport, MonthlyTarget, UserProfile, PartnerLead } from '../types';
-import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfYear, endOfYear } from 'date-fns';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area 
 } from 'recharts';
 import { 
-  TrendingUp, Users, DollarSign, Target, AlertTriangle, CheckCircle2, 
-  Calendar, ArrowUpRight, ArrowDownRight, LayoutDashboard, Filter,
-  ChevronDown
+  TrendingUp, Users, DollarSign, Filter, ChevronDown, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 interface DashboardProps {
   user: UserProfile;
+}
+
+type TimeRange = 'day' | 'week' | 'month' | 'year';
+
+function computeDateRange(timeRange: TimeRange, selectedDate: string) {
+  const ref = parseISO(selectedDate);
+  let start: Date, end: Date;
+  if (timeRange === 'day') {
+    start = ref; end = ref;
+  } else if (timeRange === 'week') {
+    start = startOfWeek(ref, { weekStartsOn: 1 });
+    end = endOfWeek(ref, { weekStartsOn: 1 });
+  } else if (timeRange === 'month') {
+    start = startOfMonth(ref);
+    end = endOfMonth(ref);
+  } else {
+    start = startOfYear(ref);
+    end = endOfYear(ref);
+  }
+  return {
+    rangeStart: format(start, 'yyyy-MM-dd'),
+    rangeEnd: format(end, 'yyyy-MM-dd'),
+    targetMonthStart: format(start, 'yyyy-MM'),
+    targetMonthEnd: format(end, 'yyyy-MM'),
+  };
 }
 
 export default function Dashboard({ user }: DashboardProps) {
@@ -23,59 +46,31 @@ export default function Dashboard({ user }: DashboardProps) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [partnerLeads, setPartnerLeads] = useState<PartnerLead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState<'month' | 'quarter' | 'year'>('month');
+  const [timeRange, setTimeRange] = useState<TimeRange>('month');
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   const isAdmin = user.role === 'admin';
-  const currentMonth = format(new Date(), 'yyyy-MM');
 
   useEffect(() => {
     fetchData();
-  }, [timeRange, user.uid, user.role]);
+  }, [timeRange, selectedDate, user.uid]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch users (Admin only)
-      if (isAdmin) {
-        const usersSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'sales')));
-        const fetchedUsers = usersSnap.docs.map(doc => doc.data() as UserProfile);
-        setUsers(fetchedUsers);
-      } else {
-        setUsers([user]);
-      }
+      const { rangeStart, rangeEnd, targetMonthStart, targetMonthEnd } = computeDateRange(timeRange, selectedDate);
 
-      // Fetch targets based on time range
-      let targetStart, targetEnd;
-      if (timeRange === 'month') {
-        targetStart = currentMonth;
-        targetEnd = currentMonth;
-      } else if (timeRange === 'quarter') {
-        const qStart = startOfQuarter(new Date());
-        const qEnd = endOfQuarter(new Date());
-        targetStart = format(qStart, 'yyyy-MM');
-        targetEnd = format(qEnd, 'yyyy-MM');
-      } else {
-        targetStart = format(startOfYear(new Date()), 'yyyy-MM');
-        targetEnd = format(endOfYear(new Date()), 'yyyy-MM');
-      }
+      // Fetch all sales users (both admin and sales can see all)
+      const usersSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'sales')));
+      setUsers(usersSnap.docs.map(doc => doc.data() as UserProfile));
 
-      let targetQuery = query(
-        collection(db, 'monthly_targets'), 
-        where('month', '>=', targetStart),
-        where('month', '<=', targetEnd)
-      );
-
-      if (!isAdmin) {
-        targetQuery = query(targetQuery, where('userId', '==', user.uid));
-      }
-
-      // For sales, we only show their own targets in the main stats
-      // But for the leaderboard, we might need others' targets? 
-      // Actually, leaderboard is usually just raw performance.
-      const targetsSnap = await getDocs(targetQuery);
+      // Fetch targets for the relevant months
+      const targetsSnap = await getDocs(query(
+        collection(db, 'monthly_targets'),
+        where('month', '>=', targetMonthStart),
+        where('month', '<=', targetMonthEnd)
+      ));
       const targetDocs = targetsSnap.docs.map(doc => doc.data() as MonthlyTarget);
-      
-      // Aggregate targets by user
       const aggregatedTargets: { [userId: string]: MonthlyTarget } = {};
       targetDocs.forEach(t => {
         if (!aggregatedTargets[t.userId]) {
@@ -86,41 +81,18 @@ export default function Dashboard({ user }: DashboardProps) {
         aggregatedTargets[t.userId].mxh += t.mxh;
         aggregatedTargets[t.userId].zalo += t.zalo;
       });
-
       setTargets(Object.values(aggregatedTargets));
 
-      // Fetch reports (Personal for sales, All for admin)
-      let start, end;
-      if (timeRange === 'month') {
-        start = startOfMonth(new Date());
-        end = endOfMonth(new Date());
-      } else if (timeRange === 'quarter') {
-        start = startOfQuarter(new Date());
-        end = endOfQuarter(new Date());
-      } else {
-        start = startOfYear(new Date());
-        end = endOfYear(new Date());
-      }
-
-      let reportQuery = query(
+      // Fetch all reports in date range
+      const reportsSnap = await getDocs(query(
         collection(db, 'daily_reports'),
-        where('date', '>=', format(start, 'yyyy-MM-dd')),
-        where('date', '<=', format(end, 'yyyy-MM-dd'))
-      );
-
-      if (!isAdmin) {
-        reportQuery = query(reportQuery, where('userId', '==', user.uid));
-      }
-
-      const reportsSnap = await getDocs(reportQuery);
+        where('date', '>=', rangeStart),
+        where('date', '<=', rangeEnd)
+      ));
       setReports(reportsSnap.docs.map(doc => doc.data() as DailyReport));
 
-      // Fetch partner_leads to count processing events (lienHe)
-      let partnerLeadQuery = query(collection(db, 'partner_leads'));
-      if (!isAdmin) {
-        partnerLeadQuery = query(collection(db, 'partner_leads'), where('assignedTo', '==', user.uid));
-      }
-      const partnerLeadsSnap = await getDocs(partnerLeadQuery);
+      // Fetch all partner_leads
+      const partnerLeadsSnap = await getDocs(query(collection(db, 'partner_leads')));
       setPartnerLeads(partnerLeadsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as PartnerLead));
 
     } catch (err) {
@@ -131,41 +103,22 @@ export default function Dashboard({ user }: DashboardProps) {
   };
 
   const stats = useMemo(() => {
-    // Determine date range bounds for filtering lienHe entries
-    let rangeStart: string, rangeEnd: string;
-    if (timeRange === 'month') {
-      rangeStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-      rangeEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-    } else if (timeRange === 'quarter') {
-      rangeStart = format(startOfQuarter(new Date()), 'yyyy-MM-dd');
-      rangeEnd = format(endOfQuarter(new Date()), 'yyyy-MM-dd');
-    } else {
-      rangeStart = format(startOfYear(new Date()), 'yyyy-MM-dd');
-      rangeEnd = format(endOfYear(new Date()), 'yyyy-MM-dd');
-    }
+    const { rangeStart, rangeEnd } = computeDateRange(timeRange, selectedDate);
 
     const totalRevenue = reports.reduce((sum, r) => sum + r.revenue, 0);
-    const userTarget = targets.filter(t => isAdmin ? true : t.userId === user.uid);
-    const totalTarget = userTarget.reduce((sum, t) => sum + t.revenue, 0);
+    const totalTarget = targets.reduce((sum, t) => sum + t.revenue, 0);
     const totalLeads = reports.reduce((sum, r) => sum + r.soKHTiemNang, 0);
     const totalMxh = reports.reduce((sum, r) => sum + (r.dangTinMXH?.length || 0), 0);
-    // Count total lienHe (processing events) within the time range
     const totalPartners = partnerLeads.reduce((sum, lead) => {
-      const count = (lead.lienHe ?? []).filter(lh => {
-        if (!lh.ngay) return false;
-        return lh.ngay >= rangeStart && lh.ngay <= rangeEnd;
-      }).length;
-      return sum + count;
+      return sum + (lead.lienHe ?? []).filter(lh => lh.ngay && lh.ngay >= rangeStart && lh.ngay <= rangeEnd).length;
     }, 0);
     const totalExistingCustomers = reports.reduce((sum, r) => sum + (r.khachHangCu || 0), 0);
-    
     const revenueProgress = totalTarget > 0 ? (totalRevenue / totalTarget) * 100 : 0;
-    
     const uniqueDates = new Set(reports.map(r => r.date)).size;
     const dailyAvg = uniqueDates > 0 ? totalRevenue / uniqueDates : 0;
 
     return { totalRevenue, totalTarget, totalLeads, totalMxh, totalPartners, totalExistingCustomers, revenueProgress, dailyAvg };
-  }, [reports, targets, partnerLeads, timeRange, isAdmin, user.uid]);
+  }, [reports, targets, partnerLeads, timeRange, selectedDate]);
 
   const chartData = useMemo(() => {
     const dataByDate: { [key: string]: any } = {};
@@ -193,14 +146,12 @@ export default function Dashboard({ user }: DashboardProps) {
   }, [reports, partnerLeads]);
 
   const userPerformance = useMemo(() => {
-    const displayUsers = isAdmin ? users : users.filter(u => u.uid === user.uid);
-    return displayUsers.map(u => {
+    return users.map(u => {
       const userReports = reports.filter(r => r.userId === u.uid);
       const userTarget = targets.find(t => t.userId === u.uid);
       const revenue = userReports.reduce((sum, r) => sum + r.revenue, 0);
       const target = userTarget?.revenue || 0;
       const progress = target > 0 ? (revenue / target) * 100 : 0;
-
       return {
         uid: u.uid,
         name: u.displayName,
@@ -210,23 +161,11 @@ export default function Dashboard({ user }: DashboardProps) {
         status: progress >= 100 ? 'success' : progress >= 80 ? 'warning' : 'danger'
       };
     });
-  }, [users, reports, targets, isAdmin, user.uid]);
+  }, [users, reports, targets]);
 
   const userPartnerStats = useMemo(() => {
-    let rangeStart: string, rangeEnd: string;
-    if (timeRange === 'month') {
-      rangeStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-      rangeEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-    } else if (timeRange === 'quarter') {
-      rangeStart = format(startOfQuarter(new Date()), 'yyyy-MM-dd');
-      rangeEnd = format(endOfQuarter(new Date()), 'yyyy-MM-dd');
-    } else {
-      rangeStart = format(startOfYear(new Date()), 'yyyy-MM-dd');
-      rangeEnd = format(endOfYear(new Date()), 'yyyy-MM-dd');
-    }
-
-    const displayUsers = isAdmin ? users : users.filter(u => u.uid === user.uid);
-    return displayUsers.map(u => {
+    const { rangeStart, rangeEnd } = computeDateRange(timeRange, selectedDate);
+    return users.map(u => {
       const userTarget = targets.find(t => t.userId === u.uid);
       const actual = partnerLeads
         .filter(lead => lead.assignedTo === u.uid)
@@ -236,7 +175,7 @@ export default function Dashboard({ user }: DashboardProps) {
       const target = userTarget?.partners || 0;
       return { name: u.displayName, actual, target };
     });
-  }, [users, partnerLeads, targets, timeRange, isAdmin, user.uid]);
+  }, [users, partnerLeads, targets, timeRange, selectedDate]);
 
   if (loading) {
     return (
@@ -249,33 +188,93 @@ export default function Dashboard({ user }: DashboardProps) {
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-12">
       {/* Header with Time Range Selector */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">
-              {isAdmin ? 'Thống kê & Cảnh báo' : 'Thống kê cá nhân'}
-            </h1>
-            <p className="text-gray-400 text-sm font-medium">
-              {isAdmin 
-                ? 'Theo dõi hiệu suất và cảnh báo mục tiêu phòng kinh doanh' 
-                : 'Theo dõi hiệu suất và tiến độ mục tiêu cá nhân'}
-            </p>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Thống kê phòng kinh doanh</h1>
+            <p className="text-gray-400 text-sm font-medium">Theo dõi hiệu suất toàn đội</p>
+          </div>
+          {/* Range tabs */}
+          <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100">
+            {(['day', 'week', 'month', 'year'] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+                  timeRange === range
+                    ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {range === 'day' ? 'Ngày' : range === 'week' ? 'Tuần' : range === 'month' ? 'Tháng' : 'Năm'}
+              </button>
+            ))}
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100">
-          {(['month', 'quarter', 'year'] as const).map((range) => (
-            <button
-              key={range}
-              onClick={() => setTimeRange(range)}
-              className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-                timeRange === range 
-                  ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              {range === 'month' ? 'Tháng' : range === 'quarter' ? 'Quý' : 'Năm'}
-            </button>
-          ))}
+
+        {/* Date picker row */}
+        <div className="flex items-center gap-3 bg-white p-3 rounded-2xl shadow-sm border border-gray-100 w-fit">
+          <button
+            onClick={() => {
+              const ref = parseISO(selectedDate);
+              const prev = new Date(ref);
+              if (timeRange === 'day') prev.setDate(prev.getDate() - 1);
+              else if (timeRange === 'week') prev.setDate(prev.getDate() - 7);
+              else if (timeRange === 'month') prev.setMonth(prev.getMonth() - 1);
+              else prev.setFullYear(prev.getFullYear() - 1);
+              setSelectedDate(format(prev, 'yyyy-MM-dd'));
+            }}
+            className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          {timeRange === 'day' && (
+            <input type="date" value={selectedDate}
+              onChange={e => e.target.value && setSelectedDate(e.target.value)}
+              className="border-none outline-none text-sm font-bold text-gray-700 bg-transparent cursor-pointer" />
+          )}
+          {timeRange === 'week' && (
+            <input type="date" value={selectedDate}
+              onChange={e => e.target.value && setSelectedDate(e.target.value)}
+              className="border-none outline-none text-sm font-bold text-gray-700 bg-transparent cursor-pointer"
+              title="Chọn ngày bất kỳ trong tuần cần xem" />
+          )}
+          {timeRange === 'month' && (
+            <input type="month" value={selectedDate.slice(0, 7)}
+              onChange={e => e.target.value && setSelectedDate(e.target.value + '-01')}
+              className="border-none outline-none text-sm font-bold text-gray-700 bg-transparent cursor-pointer" />
+          )}
+          {timeRange === 'year' && (
+            <input type="number" value={selectedDate.slice(0, 4)} min="2020" max="2035"
+              onChange={e => e.target.value && setSelectedDate(e.target.value + '-01-01')}
+              className="border-none outline-none text-sm font-bold text-gray-700 bg-transparent w-20 cursor-pointer" />
+          )}
+
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">
+            {(() => {
+              const { rangeStart, rangeEnd } = computeDateRange(timeRange, selectedDate);
+              if (timeRange === 'day') return format(parseISO(rangeStart), 'dd/MM/yyyy');
+              if (timeRange === 'week') return `${format(parseISO(rangeStart), 'dd/MM')} – ${format(parseISO(rangeEnd), 'dd/MM/yyyy')}`;
+              if (timeRange === 'month') return format(parseISO(rangeStart), 'MM/yyyy');
+              return rangeStart.slice(0, 4);
+            })()}
+          </span>
+
+          <button
+            onClick={() => {
+              const ref = parseISO(selectedDate);
+              const next = new Date(ref);
+              if (timeRange === 'day') next.setDate(next.getDate() + 1);
+              else if (timeRange === 'week') next.setDate(next.getDate() + 7);
+              else if (timeRange === 'month') next.setMonth(next.getMonth() + 1);
+              else next.setFullYear(next.getFullYear() + 1);
+              setSelectedDate(format(next, 'yyyy-MM-dd'));
+            }}
+            className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -327,7 +326,7 @@ export default function Dashboard({ user }: DashboardProps) {
               <h3 className="text-lg font-bold text-gray-900">Xu hướng doanh số & Đối tác</h3>
               <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest">
                 <Filter className="w-4 h-4" />
-                {timeRange === 'month' ? 'Tháng này' : timeRange === 'quarter' ? 'Quý này' : 'Năm nay'}
+                {timeRange === 'day' ? 'Ngày' : timeRange === 'week' ? 'Tuần' : timeRange === 'month' ? 'Tháng' : 'Năm'}
               </div>
             </div>
             <div className="h-[300px]">
@@ -345,7 +344,7 @@ export default function Dashboard({ user }: DashboardProps) {
                     axisLine={false} 
                     tickLine={false} 
                     tick={{fontSize: 10, fill: '#9ca3af'}} 
-                    tickFormatter={(val) => format(new Date(val), timeRange === 'year' ? 'MM/yy' : 'dd/MM')}
+                    tickFormatter={(val) => format(parseISO(val), timeRange === 'year' ? 'MM/yy' : 'dd/MM')}
                   />
                   <YAxis 
                     axisLine={false} 
@@ -450,9 +449,7 @@ export default function Dashboard({ user }: DashboardProps) {
       {/* Performance Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
         <div className="p-8 border-b border-gray-50 flex justify-between items-center">
-          <h3 className="text-lg font-bold text-gray-900">
-            {isAdmin ? 'Hiệu suất nhân viên' : 'Hiệu suất cá nhân'}
-          </h3>
+          <h3 className="text-lg font-bold text-gray-900">Hiệu suất nhân viên</h3>
           <ChevronDown className="w-5 h-5 text-gray-400" />
         </div>
         <div className="overflow-x-auto">
