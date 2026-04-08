@@ -3,7 +3,7 @@ import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { collection, addDoc, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { DailyReport, UserProfile } from '../types';
 import { format } from 'date-fns';
-import { Save, CheckCircle2, AlertCircle, Calendar as CalendarIcon, DollarSign, Users, MessageSquare, Mail, Zap, Plus, Link as LinkIcon, Trash2, User as UserIcon, FileText, X, Copy, Check, Camera } from 'lucide-react';
+import { Save, CheckCircle2, AlertCircle, Calendar as CalendarIcon, DollarSign, Users, MessageSquare, Mail, Zap, Link as LinkIcon, User as UserIcon, FileText, X, Copy, Check, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toBlob } from 'html-to-image';
 
@@ -37,9 +37,7 @@ export default function ReportForm({ user }: ReportFormProps) {
   const [capturing, setCapturing] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
   const [partnerLeadCount, setPartnerLeadCount] = useState(0);
-
-  // Local state for adding new items
-  const [newMxhLink, setNewMxhLink] = useState('');
+  const [mxhCount, setMxhCount] = useState(0);
 
   useEffect(() => {
     if (user.role === 'admin') {
@@ -96,22 +94,6 @@ export default function ReportForm({ user }: ReportFormProps) {
     }
   };
 
-  const addMxhLink = () => {
-    if (!newMxhLink) return;
-    setFormData(prev => ({
-      ...prev,
-      dangTinMXH: [...prev.dangTinMXH, newMxhLink],
-    }));
-    setNewMxhLink('');
-  };
-
-  const removeMxhLink = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      dangTinMXH: prev.dangTinMXH.filter((_, i) => i !== index),
-    }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -121,6 +103,7 @@ export default function ReportForm({ user }: ReportFormProps) {
     try {
       const reportData: Omit<DailyReport, 'id'> = {
         ...formData,
+        dangTinMXH: Array(mxhCount).fill(''),
         userId: selectedUserId,
         date,
         createdAt: new Date().toISOString(),
@@ -154,7 +137,7 @@ export default function ReportForm({ user }: ReportFormProps) {
         date,
         revenue: formData.revenue,
         partnerCount: formData.daiLyCTV.length,
-        mxhCount: formData.dangTinMXH.length,
+        mxhCount: mxhCount,
         leadsCount: formData.soKHTiemNang,
         updatedAt: new Date().toISOString()
       });
@@ -305,46 +288,20 @@ export default function ReportForm({ user }: ReportFormProps) {
                   Đăng tin MXH
                 </h3>
                 <span className="bg-primary/5 text-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
-                  {formData.dangTinMXH.length} Bài viết
+                  {mxhCount} Bài viết
                 </span>
               </div>
 
-              <div className="bg-gray-50 p-6 rounded-2xl space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Link bài viết Facebook</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newMxhLink}
-                      onChange={(e) => setNewMxhLink(e.target.value)}
-                      className="flex-1 bg-white border-none rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20"
-                      placeholder="https://facebook.com/..."
-                    />
-                    <button
-                      type="button"
-                      onClick={addMxhLink}
-                      className="p-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
-                    >
-                      <Plus className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {formData.dangTinMXH.map((link, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 bg-white border border-gray-50 rounded-2xl shadow-sm hover:border-primary/20 transition-all">
-                    <div className="flex items-center gap-4 overflow-hidden">
-                      <div className="w-8 h-8 bg-primary/5 rounded-lg flex items-center justify-center text-primary">
-                        <LinkIcon className="w-4 h-4" />
-                      </div>
-                      <p className="text-xs text-primary font-bold truncate">{link}</p>
-                    </div>
-                    <button onClick={() => removeMxhLink(idx)} className="p-2 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+              <div className="bg-gray-50 p-6 rounded-2xl space-y-3 group">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Số lượng bài đăng MXH hôm nay</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={mxhCount}
+                  onChange={(e) => setMxhCount(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-full bg-white border-2 border-transparent rounded-2xl py-4 px-5 text-gray-900 font-bold focus:bg-white focus:border-primary/20 focus:ring-0 transition-all text-2xl"
+                  placeholder="0"
+                />
               </div>
             </div>
           </div>
@@ -484,7 +441,7 @@ export default function ReportForm({ user }: ReportFormProps) {
                       <LinkIcon className="w-3.5 h-3.5 text-primary" />
                       Bài viết MXH
                     </p>
-                    <p className="text-base font-black text-gray-900">{summaryData.dangTinMXH.length}</p>
+                    <p className="text-base font-black text-gray-900">{mxhCount}</p>
                   </div>
                 </div>
               </div>
