@@ -3,7 +3,7 @@ import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { collection, addDoc, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { DailyReport, UserProfile } from '../types';
 import { format } from 'date-fns';
-import { Save, CheckCircle2, AlertCircle, Calendar as CalendarIcon, DollarSign, Users, MessageSquare, Mail, Zap, Plus, Trash2, Link as LinkIcon, Phone, User as UserIcon, FileText, X, Copy, Check, Camera } from 'lucide-react';
+import { Save, CheckCircle2, AlertCircle, Calendar as CalendarIcon, DollarSign, Users, MessageSquare, Mail, Zap, Plus, Link as LinkIcon, Trash2, User as UserIcon, FileText, X, Copy, Check, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toBlob } from 'html-to-image';
 
@@ -36,9 +36,9 @@ export default function ReportForm({ user }: ReportFormProps) {
   const [formattedRevenue, setFormattedRevenue] = useState('0');
   const [capturing, setCapturing] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
+  const [partnerLeadCount, setPartnerLeadCount] = useState(0);
 
   // Local state for adding new items
-  const [newPartner, setNewPartner] = useState({ name: '', phone: '', content: '' });
   const [newMxhLink, setNewMxhLink] = useState('');
 
   useEffect(() => {
@@ -57,6 +57,26 @@ export default function ReportForm({ user }: ReportFormProps) {
     }
   }, [user.role]);
 
+  // Auto-fetch partner lead processing count for the selected date
+  useEffect(() => {
+    const fetchPartnerLeadCount = async () => {
+      try {
+        const q = query(collection(db, 'partner_leads'), where('assignedTo', '==', selectedUserId));
+        const snap = await getDocs(q);
+        let count = 0;
+        snap.docs.forEach(d => {
+          const lead = d.data();
+          const lienHe: { ngay?: string }[] = lead.lienHe ?? [];
+          count += lienHe.filter(lh => lh.ngay === date).length;
+        });
+        setPartnerLeadCount(count);
+      } catch (err) {
+        console.error('Error fetching partner lead count:', err);
+      }
+    };
+    fetchPartnerLeadCount();
+  }, [date, selectedUserId]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     
@@ -74,22 +94,6 @@ export default function ReportForm({ user }: ReportFormProps) {
         [name]: e.target.type === 'number' ? (parseFloat(value) || 0) : value
       }));
     }
-  };
-
-  const addPartner = () => {
-    if (!newPartner.name || !newPartner.phone) return;
-    setFormData(prev => ({
-      ...prev,
-      daiLyCTV: [...prev.daiLyCTV, { ...newPartner }],
-    }));
-    setNewPartner({ name: '', phone: '', content: '' });
-  };
-
-  const removePartner = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      daiLyCTV: prev.daiLyCTV.filter((_, i) => i !== index),
-    }));
   };
 
   const addMxhLink = () => {
@@ -270,7 +274,7 @@ export default function ReportForm({ user }: ReportFormProps) {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 pt-12 border-t border-gray-50">
-            {/* Dai Ly / CTV Section */}
+            {/* Dai Ly / CTV Section - auto-counted from partner_leads */}
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold flex items-center gap-2 text-gray-900">
@@ -278,71 +282,18 @@ export default function ReportForm({ user }: ReportFormProps) {
                   Đại lý / CTV
                 </h3>
                 <span className="bg-primary/5 text-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
-                  {formData.daiLyCTV.length} Đối tác
+                  {partnerLeadCount} Lần xử lý
                 </span>
               </div>
-              
-              <div className="bg-gray-50 p-6 rounded-2xl space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tên đối tác</label>
-                    <input
-                      type="text"
-                      value={newPartner.name}
-                      onChange={(e) => setNewPartner(p => ({ ...p, name: e.target.value }))}
-                      className="w-full bg-white border-none rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20"
-                      placeholder="Nguyễn Văn A"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Số điện thoại</label>
-                    <input
-                      type="text"
-                      value={newPartner.phone}
-                      onChange={(e) => setNewPartner(p => ({ ...p, phone: e.target.value }))}
-                      className="w-full bg-white border-none rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20"
-                      placeholder="090..."
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nội dung trao đổi</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newPartner.content}
-                      onChange={(e) => setNewPartner(p => ({ ...p, content: e.target.value }))}
-                      className="flex-1 bg-white border-none rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-primary/20"
-                      placeholder="Trao đổi về chính sách..."
-                    />
-                    <button
-                      type="button"
-                      onClick={addPartner}
-                      className="p-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
-                    >
-                      <Plus className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
 
-              <div className="space-y-3">
-                {formData.daiLyCTV.map((p, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 bg-white border border-gray-50 rounded-2xl shadow-sm group hover:border-primary/20 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center text-primary font-bold text-xs">
-                        {idx + 1}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">{p.name} • {p.phone}</p>
-                        <p className="text-xs text-gray-400 font-medium">{p.content}</p>
-                      </div>
-                    </div>
-                    <button onClick={() => removePartner(idx)} className="p-2 text-gray-300 hover:text-red-500 transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+              <div className="bg-gray-50 p-6 rounded-2xl flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                <p className="text-5xl font-black text-primary">{partnerLeadCount}</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">
+                  Lần xử lý Lead trong ngày {date ? new Date(date + 'T00:00:00').toLocaleDateString('vi-VN') : ''}
+                </p>
+                <p className="text-xs text-gray-400 text-center">
+                  Tự động tổng hợp từ <span className="font-bold text-primary">Quản lý Lead đối tác</span>
+                </p>
               </div>
             </div>
 
@@ -523,9 +474,9 @@ export default function ReportForm({ user }: ReportFormProps) {
                   <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-0.5">
                     <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
                       <Users className="w-3.5 h-3.5 text-primary" />
-                      Đối tác/CTV
+                      Đại lý/CTV
                     </p>
-                    <p className="text-base font-black text-gray-900">{summaryData.daiLyCTV.length}</p>
+                    <p className="text-base font-black text-gray-900">{partnerLeadCount}</p>
                   </div>
                   {/* MXH Count */}
                   <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-0.5">
