@@ -69,14 +69,17 @@ const boolFromExcel = (v: unknown): boolean => {
 
 // ─── AddLeadModal ─────────────────────────────────────────────────────────────
 
+const NGUON_OPTIONS = ['TỰ TÌM', 'BOD GIỚI THIỆU', 'TỪ CÁC KÊNH CTY'];
+
 interface AddLeadModalProps {
   user: UserProfile;
   users: FirestoreUser[];
+  nhomOptions: string[];
   onClose: () => void;
   onSaved: () => void;
 }
 
-function AddLeadModal({ user, users, onClose, onSaved }: AddLeadModalProps) {
+function AddLeadModal({ user, users, nhomOptions, onClose, onSaved }: AddLeadModalProps) {
   const isAdmin = user.role === 'admin';
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -162,13 +165,19 @@ function AddLeadModal({ user, users, onClose, onSaved }: AddLeadModalProps) {
             </div>
             <div>
               <label className="text-xs text-gray-500 uppercase font-semibold block mb-1">Nguồn</label>
-              <input type="text" value={form.nguon} onChange={e => setForm(p => ({ ...p, nguon: e.target.value }))}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" placeholder="Facebook, Zalo..." />
+              <select value={form.nguon} onChange={e => setForm(p => ({ ...p, nguon: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm">
+                <option value="">— Chọn nguồn —</option>
+                {NGUON_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
             </div>
             <div>
               <label className="text-xs text-gray-500 uppercase font-semibold block mb-1">Nhóm</label>
-              <input type="text" value={form.nhom} onChange={e => setForm(p => ({ ...p, nhom: e.target.value }))}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" placeholder="Đại lý, CTV..." />
+              <select value={form.nhom} onChange={e => setForm(p => ({ ...p, nhom: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm">
+                <option value="">— Chọn nhóm —</option>
+                {nhomOptions.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
             </div>
             {isAdmin && (
               <div className="col-span-2">
@@ -977,6 +986,7 @@ export default function PartnerLeadManagement({ user }: Props) {
         <AddLeadModal
           user={user}
           users={users}
+          nhomOptions={allNhom}
           onClose={() => setShowAddModal(false)}
           onSaved={() => { fetchLeads(); setActiveTab('list'); }}
         />
