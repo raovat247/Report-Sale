@@ -389,39 +389,6 @@ export default function Dashboard({ user }: DashboardProps) {
             </div>
           </div>
 
-          {/* Performance Status Summary */}
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-50 space-y-6">
-            <h3 className="text-lg font-bold text-gray-900">Trạng thái mục tiêu</h3>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 p-4 bg-green-50 rounded-2xl">
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-green-600 shadow-sm">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-lg font-black text-gray-900">{userPerformance.filter(u => u.status === 'success').length}</p>
-                  <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">Hoàn thành (100%+)</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 p-4 bg-amber-50 rounded-2xl">
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-amber-600 shadow-sm">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-lg font-black text-gray-900">{userPerformance.filter(u => u.status === 'warning').length}</p>
-                  <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Cần cố gắng (80-99%)</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 p-4 bg-red-50 rounded-2xl">
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-red-600 shadow-sm">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-lg font-black text-gray-900">{userPerformance.filter(u => u.status === 'danger').length}</p>
-                  <p className="text-[10px] font-bold text-red-600 uppercase tracking-widest">Cảnh báo (&lt;80%)</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
