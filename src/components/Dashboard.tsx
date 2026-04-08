@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
-import { DailyReport, MonthlyTarget, UserProfile } from '../types';
+import { DailyReport, MonthlyTarget, UserProfile, PartnerLead } from '../types';
 import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -21,6 +21,7 @@ export default function Dashboard({ user }: DashboardProps) {
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [targets, setTargets] = useState<MonthlyTarget[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [partnerLeads, setPartnerLeads] = useState<PartnerLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'month' | 'quarter' | 'year'>('month');
 
@@ -114,6 +115,14 @@ export default function Dashboard({ user }: DashboardProps) {
       const reportsSnap = await getDocs(reportQuery);
       setReports(reportsSnap.docs.map(doc => doc.data() as DailyReport));
 
+      // Fetch partner_leads to count processing events (lienHe)
+      let partnerLeadQuery = query(collection(db, 'partner_leads'));
+      if (!isAdmin) {
+        partnerLeadQuery = query(collection(db, 'partner_leads'), where('assignedTo', '==', user.uid));
+      }
+      const partnerLeadsSnap = await getDocs(partnerLeadQuery);
+      setPartnerLeads(partnerLeadsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as PartnerLead));
+
     } catch (err) {
       handleFirestoreError(err, OperationType.LIST, 'dashboard_data');
     } finally {
@@ -122,12 +131,32 @@ export default function Dashboard({ user }: DashboardProps) {
   };
 
   const stats = useMemo(() => {
+    // Determine date range bounds for filtering lienHe entries
+    let rangeStart: string, rangeEnd: string;
+    if (timeRange === 'month') {
+      rangeStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+      rangeEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+    } else if (timeRange === 'quarter') {
+      rangeStart = format(startOfQuarter(new Date()), 'yyyy-MM-dd');
+      rangeEnd = format(endOfQuarter(new Date()), 'yyyy-MM-dd');
+    } else {
+      rangeStart = format(startOfYear(new Date()), 'yyyy-MM-dd');
+      rangeEnd = format(endOfYear(new Date()), 'yyyy-MM-dd');
+    }
+
     const totalRevenue = reports.reduce((sum, r) => sum + r.revenue, 0);
     const userTarget = targets.filter(t => isAdmin ? true : t.userId === user.uid);
     const totalTarget = userTarget.reduce((sum, t) => sum + t.revenue, 0);
     const totalLeads = reports.reduce((sum, r) => sum + r.soKHTiemNang, 0);
     const totalMxh = reports.reduce((sum, r) => sum + (r.dangTinMXH?.length || 0), 0);
-    const totalPartners = reports.reduce((sum, r) => sum + (r.daiLyCTV?.length || 0), 0);
+    // Count total lienHe (processing events) within the time range
+    const totalPartners = partnerLeads.reduce((sum, lead) => {
+      const count = (lead.lienHe ?? []).filter(lh => {
+        if (!lh.ngay) return false;
+        return lh.ngay >= rangeStart && lh.ngay <= rangeEnd;
+      }).length;
+      return sum + count;
+    }, 0);
     const totalExistingCustomers = reports.reduce((sum, r) => sum + (r.khachHangCu || 0), 0);
     
     const revenueProgress = totalTarget > 0 ? (totalRevenue / totalTarget) * 100 : 0;
@@ -136,7 +165,7 @@ export default function Dashboard({ user }: DashboardProps) {
     const dailyAvg = uniqueDates > 0 ? totalRevenue / uniqueDates : 0;
 
     return { totalRevenue, totalTarget, totalLeads, totalMxh, totalPartners, totalExistingCustomers, revenueProgress, dailyAvg };
-  }, [reports, targets, isAdmin, user.uid]);
+  }, [reports, targets, partnerLeads, timeRange, isAdmin, user.uid]);
 
   const chartData = useMemo(() => {
     const dataByDate: { [key: string]: any } = {};
@@ -237,10 +266,10 @@ export default function Dashboard({ user }: DashboardProps) {
           icon={<Users className="w-5 h-5" />}
           color="emerald"
         />
-        <StatCard 
-          title="Đại lý / CTV" 
-          value={stats.totalPartners.toString()} 
-          unit="Đối tác"
+        <StatCard
+          title="Đại lý / CTV"
+          value={stats.totalPartners.toString()}
+          unit="Lần xử lý"
           icon={<Users className="w-5 h-5" />}
           color="amber"
         />
