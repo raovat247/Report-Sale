@@ -448,19 +448,19 @@ export default function ReportForm({ user }: ReportFormProps) {
                                 <UserIcon className="w-5 h-5" />
                               </div>
                             )}
-                            <div className="absolute -left-3 top-1/2 -translate-y-1/2">
+                            <div className="absolute -left-8 top-1/2 -translate-y-1/2">
                               <motion.div
-                                initial={{ scale: 0, rotate: -20 }}
-                                animate={{ scale: 1, rotate: 0 }}
+                                initial={{ scale: 0, x: 20 }}
+                                animate={{ scale: 1, x: 0 }}
                                 className="relative"
                               >
                                 <img 
                                   src={rankInfo.icon} 
                                   alt={rankInfo.name} 
-                                  className="w-8 h-8 drop-shadow-md z-20" 
+                                  className="w-10 h-10 drop-shadow-lg z-20" 
                                   title={`Hạng: ${rankInfo.name} (${monthlyRevenue.toLocaleString('vi-VN')} đ)`}
                                 />
-                                <div className="absolute inset-0 bg-white/20 blur-sm rounded-full -z-10" />
+                                <div className="absolute inset-0 bg-white/20 blur-md rounded-full -z-10" />
                               </motion.div>
                             </div>
                           </div>
