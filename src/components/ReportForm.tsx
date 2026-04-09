@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { collection, addDoc, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { DailyReport, UserProfile } from '../types';
-import { format } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { Save, CheckCircle2, AlertCircle, Calendar as CalendarIcon, DollarSign, Users, MessageSquare, Mail, Zap, Link as LinkIcon, User as UserIcon, FileText, X, Copy, Check, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toBlob } from 'html-to-image';
@@ -195,50 +195,82 @@ export default function ReportForm({ user }: ReportFormProps) {
     try {
       // Use the month from the current report's date for accurate retrospective reporting
       const referenceDate = summaryData?.date ? parseISO(summaryData.date) : new Date();
-      const start = startOfMonth(referenceDate);
-      const startStr = format(start, 'yyyy-MM-dd');
-      
-      // Find user profile for secondary name-based matching (backup for data consistency)
-      const targetUser = users.find(u => u.uid === userId);
-      const targetName = targetUser?.displayName;
-      
-      // Fetch all reports for the target month (matches Dashboard.tsx logic)
-      const q = query(
+      const startStr = format(startOfMonth(referenceDate), 'yyyy-MM-dd');
+      const endStr = format(endOfMonth(referenceDate), 'yyyy-MM-dd');
+
+      console.log(`[Rank] Fetching revenue for userId=${userId} | month: ${startStr} -> ${endStr}`);
+
+      // ── 1. Sum from daily_reports (primary source, matches Dashboard.tsx) ─────
+      const dailyQ = query(
         collection(db, 'daily_reports'),
-        where('date', '>=', startStr)
+        where('date', '>=', startStr),
+        where('date', '<=', endStr)
       );
-      const snap = await getDocs(q);
-      
+      const dailySnap = await getDocs(dailyQ);
+
       let total = 0;
       let foundCurrent = false;
 
-      snap.docs.forEach(d => {
-        const data = d.data();
-        // Robust matching: Check both UID and Name
-        const isMatch = (data.userId === userId) || (targetName && data.userName === targetName);
+      console.log(`[Rank] daily_reports docs in range: ${dailySnap.size}`);
 
-        if (isMatch) {
-          // Hardened parsing: remove all non-digits (handles "25.000.000", "25,000,000", etc.)
+      dailySnap.docs.forEach(d => {
+        const data = d.data();
+        console.log(`[Rank] doc: userId=${data.userId}, date=${data.date}, revenue=${data.revenue}`);
+
+        if (data.userId === userId) {
           const rawRevenue = String(data.revenue || 0).replace(/[^\d]/g, '');
           const val = parseInt(rawRevenue, 10) || 0;
           total += val;
-          
-          // Verify if the record we just submitted is already in the fetched list
-          if (summaryData && data.date === summaryData.date && val === summaryData.revenue) {
+          console.log(`[Rank]  → matched! val=${val}, running total=${total}`);
+
+          if (summaryData && data.date === summaryData.date) {
             foundCurrent = true;
           }
         }
       });
 
-      // If the report we just submitted hasn't appeared in the list yet (eventual consistency), add it manually
+      // If the just-submitted report hasn't appeared yet (eventual consistency), count it
       if (!foundCurrent && summaryData) {
-        total += Number(summaryData.revenue) || 0;
+        const currentRevenue = Number(summaryData.revenue) || 0;
+        total += currentRevenue;
+        console.log(`[Rank] Adding current report revenue: ${currentRevenue}, total now: ${total}`);
       }
-      
-      console.log(`Robust calculation for ${targetName || userId}: Final Total ${total}`);
+
+      // ── 2. Also sum from general_revenue (employeeName matching) ──────────────
+      // Find the user's display name — from users list or from auth
+      const targetUser = users.find(u => u.uid === userId);
+      const targetName = targetUser?.displayName || auth.currentUser?.displayName;
+
+      if (targetName) {
+        const genQ = query(
+          collection(db, 'general_revenue'),
+          where('date', '>=', startStr),
+          where('date', '<=', endStr)
+        );
+        try {
+          const genSnap = await getDocs(genQ);
+          console.log(`[Rank] general_revenue docs in range: ${genSnap.size}`);
+          genSnap.docs.forEach(d => {
+            const data = d.data();
+            // Normalize names for comparison (remove accents, lowercase, trim)
+            const normalize = (s: string) =>
+              s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            if (normalize(data.employeeName || '') === normalize(targetName)) {
+              const val = Number(String(data.revenue || 0).replace(/[^\d]/g, '')) || 0;
+              total += val;
+              console.log(`[Rank] general_revenue match for ${data.employeeName}: val=${val}, total=${total}`);
+            }
+          });
+        } catch {
+          // general_revenue might not exist, ignore
+          console.log('[Rank] general_revenue collection not found or no permission');
+        }
+      }
+
+      console.log(`[Rank] FINAL total for ${targetName || userId}: ${total}`);
       setMonthlyRevenue(total);
     } catch (err) {
-      console.error('Error fetching monthly revenue:', err);
+      console.error('[Rank] Error fetching monthly revenue:', err);
     }
   };
 
