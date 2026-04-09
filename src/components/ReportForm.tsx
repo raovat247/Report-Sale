@@ -431,17 +431,17 @@ export default function ReportForm({ user }: ReportFormProps) {
                 {/* User & Date Header Restructured */}
                 <div className="flex flex-wrap gap-3 items-center justify-between border-b border-gray-100 pb-4">
                   {/* Left: Rank Info Area */}
-                  <div className="flex items-center min-w-[120px]">
+                  <div className="flex items-center min-w-[100px] justify-center">
                     {(() => {
                       const rankInfo = getRankInfo(monthlyRevenue);
                       return (
-                        <div className="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-center">
+                        <div className="w-12 h-12 relative bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center justify-center">
                           <motion.img
                             initial={{ scale: 0, rotate: -15 }}
                             animate={{ scale: 1, rotate: 0 }}
                             src={rankInfo.icon}
                             alt={rankInfo.name}
-                            className="w-20 h-20 drop-shadow-xl z-20"
+                            className="w-20 h-20 absolute drop-shadow-2xl z-20"
                             title={`Hạng: ${rankInfo.name} (${monthlyRevenue.toLocaleString('vi-VN')} đ)`}
                           />
                         </div>
