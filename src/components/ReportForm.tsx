@@ -193,12 +193,16 @@ export default function ReportForm({ user }: ReportFormProps) {
 
   const fetchMonthlyRevenue = async (userId: string) => {
     try {
-      const now = new Date();
-      const start = startOfMonth(now);
+      // Use the month from the current report's date for accurate retrospective reporting
+      const referenceDate = summaryData?.date ? parseISO(summaryData.date) : new Date();
+      const start = startOfMonth(referenceDate);
       const startStr = format(start, 'yyyy-MM-dd');
       
-      // Fetch all reports for the month and filter in memory to avoid index issues
-      // This matches the logic used in Dashboard.tsx which is known to be working correctly
+      // Find user profile for secondary name-based matching (backup for data consistency)
+      const targetUser = users.find(u => u.uid === userId);
+      const targetName = targetUser?.displayName;
+      
+      // Fetch all reports for the target month (matches Dashboard.tsx logic)
       const q = query(
         collection(db, 'daily_reports'),
         where('date', '>=', startStr)
@@ -206,15 +210,32 @@ export default function ReportForm({ user }: ReportFormProps) {
       const snap = await getDocs(q);
       
       let total = 0;
+      let foundCurrent = false;
+
       snap.docs.forEach(d => {
         const data = d.data();
-        if (data.userId === userId) {
-          total += Number(data.revenue) || 0;
+        // Robust matching: Check both UID and Name
+        const isMatch = (data.userId === userId) || (targetName && data.userName === targetName);
+
+        if (isMatch) {
+          // Hardened parsing: remove all non-digits (handles "25.000.000", "25,000,000", etc.)
+          const rawRevenue = String(data.revenue || 0).replace(/[^\d]/g, '');
+          const val = parseInt(rawRevenue, 10) || 0;
+          total += val;
+          
+          // Verify if the record we just submitted is already in the fetched list
+          if (summaryData && data.date === summaryData.date && val === summaryData.revenue) {
+            foundCurrent = true;
+          }
         }
       });
+
+      // If the report we just submitted hasn't appeared in the list yet (eventual consistency), add it manually
+      if (!foundCurrent && summaryData) {
+        total += Number(summaryData.revenue) || 0;
+      }
       
-      // Log for debugging if needed
-      console.log(`Monthly revenue for ${userId}: ${total}`);
+      console.log(`Robust calculation for ${targetName || userId}: Final Total ${total}`);
       setMonthlyRevenue(total);
     } catch (err) {
       console.error('Error fetching monthly revenue:', err);
