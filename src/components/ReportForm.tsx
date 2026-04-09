@@ -431,7 +431,7 @@ export default function ReportForm({ user }: ReportFormProps) {
                 {/* User & Date Header Restructured */}
                 <div className="flex flex-wrap gap-3 items-center justify-between border-b border-gray-100 pb-4">
                   {/* Left: Rank Info Area */}
-                  <div className="flex items-center min-w-[100px]">
+                  <div className="flex items-center min-w-[120px]">
                     {(() => {
                       const rankInfo = getRankInfo(monthlyRevenue);
                       return (
@@ -441,7 +441,7 @@ export default function ReportForm({ user }: ReportFormProps) {
                             animate={{ scale: 1, rotate: 0 }}
                             src={rankInfo.icon}
                             alt={rankInfo.name}
-                            className="w-12 h-12 drop-shadow-xl z-20"
+                            className="w-20 h-20 drop-shadow-xl z-20"
                             title={`Hạng: ${rankInfo.name} (${monthlyRevenue.toLocaleString('vi-VN')} đ)`}
                           />
                         </div>
