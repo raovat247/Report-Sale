@@ -197,18 +197,24 @@ export default function ReportForm({ user }: ReportFormProps) {
       const start = startOfMonth(now);
       const startStr = format(start, 'yyyy-MM-dd');
       
-      // We fetch from daily_reports as requested
+      // Fetch all reports for the month and filter in memory to avoid index issues
+      // This matches the logic used in Dashboard.tsx which is known to be working correctly
       const q = query(
         collection(db, 'daily_reports'),
-        where('userId', '==', userId),
         where('date', '>=', startStr)
       );
       const snap = await getDocs(q);
       
       let total = 0;
       snap.docs.forEach(d => {
-        total += d.data().revenue || 0;
+        const data = d.data();
+        if (data.userId === userId) {
+          total += Number(data.revenue) || 0;
+        }
       });
+      
+      // Log for debugging if needed
+      console.log(`Monthly revenue for ${userId}: ${total}`);
       setMonthlyRevenue(total);
     } catch (err) {
       console.error('Error fetching monthly revenue:', err);
