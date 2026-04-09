@@ -197,22 +197,17 @@ export default function ReportForm({ user }: ReportFormProps) {
       const start = startOfMonth(now);
       const startStr = format(start, 'yyyy-MM-dd');
       
-      // We fetch from general_revenue as it's the "official" source
+      // We fetch from daily_reports as requested
       const q = query(
-        collection(db, 'general_revenue'),
+        collection(db, 'daily_reports'),
+        where('userId', '==', userId),
         where('date', '>=', startStr)
       );
       const snap = await getDocs(q);
       
-      const reportUser = users.find(u => u.uid === userId) || user;
-      const userName = reportUser.displayName.trim().toLowerCase();
-      
       let total = 0;
       snap.docs.forEach(d => {
-        const data = d.data();
-        if (data.employeeName && data.employeeName.trim().toLowerCase() === userName) {
-          total += data.revenue || 0;
-        }
+        total += d.data().revenue || 0;
       });
       setMonthlyRevenue(total);
     } catch (err) {
@@ -427,59 +422,66 @@ export default function ReportForm({ user }: ReportFormProps) {
                 id="report-summary" 
                 className="p-5 space-y-5 overflow-y-auto bg-[#fcfcfc]"
               >
-                {/* User & Date Info */}
+                {/* User & Date Header Restructured */}
                 <div className="flex flex-wrap gap-3 items-center justify-between border-b border-gray-100 pb-4">
-                  <div className="flex items-center gap-2.5">
+                  {/* Left: Rank Info Area */}
+                  <div className="flex items-center min-w-[100px]">
                     {(() => {
-                      const reportUser = users.find(u => u.uid === summaryData.userId) || user;
                       const rankInfo = getRankInfo(monthlyRevenue);
                       return (
-                        <>
-                          <div className="relative group">
-                            {reportUser.photoURL ? (
-                              <img 
-                                src={reportUser.photoURL} 
-                                alt={reportUser.displayName} 
-                                className="w-10 h-10 rounded-xl object-cover border-2 border-primary/10"
-                                referrerPolicy="no-referrer"
-                              />
-                            ) : (
-                              <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center text-primary">
-                                <UserIcon className="w-5 h-5" />
-                              </div>
-                            )}
-                            <div className="absolute -left-8 top-1/2 -translate-y-1/2">
-                              <motion.div
-                                initial={{ scale: 0, x: 20 }}
-                                animate={{ scale: 1, x: 0 }}
-                                className="relative"
-                              >
-                                <img 
-                                  src={rankInfo.icon} 
-                                  alt={rankInfo.name} 
-                                  className="w-10 h-10 drop-shadow-lg z-20" 
-                                  title={`Hạng: ${rankInfo.name} (${monthlyRevenue.toLocaleString('vi-VN')} đ)`}
-                                />
-                                <div className="absolute inset-0 bg-white/20 blur-md rounded-full -z-10" />
-                              </motion.div>
-                            </div>
-                          </div>
-                          <div className="ml-4">
-                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Nhân viên</p>
-                            <p className="text-base font-black text-gray-900 leading-tight">{reportUser.displayName}</p>
-                          </div>
-                        </>
+                        <div className="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-center">
+                          <motion.img
+                            initial={{ scale: 0, rotate: -15 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            src={rankInfo.icon}
+                            alt={rankInfo.name}
+                            className="w-12 h-12 drop-shadow-xl z-20"
+                            title={`Hạng: ${rankInfo.name} (${monthlyRevenue.toLocaleString('vi-VN')} đ)`}
+                          />
+                        </div>
                       );
                     })()}
                   </div>
 
-                  <div className="flex-1 text-center">
-                    <span className="text-[20px] font-black uppercase tracking-[0.15em] text-[oklch(51.1%_0.262_276.966)]">BÁO CÁO NGÀY</span>
+                  {/* Center: Title & Current Date Info */}
+                  <div className="flex-1 text-center py-2">
+                    <p className="text-[20px] font-black uppercase tracking-[0.15em] text-[oklch(51.1%_0.262_276.966)] leading-none">BÁO CÁO NGÀY</p>
+                    <div className="flex items-center justify-center gap-1.5 mt-2 bg-white/40 backdrop-blur-sm px-3 py-1 rounded-full border border-gray-100 inline-flex mx-auto">
+                      <CalendarIcon className="w-3 h-3 text-primary" />
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                        {format(new Date(summaryData.date), 'dd/MM/yyyy')}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm">
-                    <CalendarIcon className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-xs font-bold text-gray-700">{format(new Date(summaryData.date), 'dd/MM/yyyy')}</span>
+                  {/* Right: Employee Info Area */}
+                  <div className="flex items-center gap-3 justify-end min-w-[100px]">
+                    <div className="text-right">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Nhân viên</p>
+                      {(() => {
+                        const reportUser = users.find(u => u.uid === summaryData.userId) || user;
+                        return <p className="text-base font-black text-gray-900 leading-tight">{reportUser.displayName}</p>;
+                      })()}
+                    </div>
+                    {(() => {
+                      const reportUser = users.find(u => u.uid === summaryData.userId) || user;
+                      return (
+                        <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-primary/10 shadow-sm">
+                          {reportUser.photoURL ? (
+                            <img
+                              src={reportUser.photoURL}
+                              alt={reportUser.displayName}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-primary/5 flex items-center justify-center text-primary">
+                              <UserIcon className="w-5 h-5" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
