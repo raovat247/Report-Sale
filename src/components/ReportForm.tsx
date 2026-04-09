@@ -6,6 +6,14 @@ import { format } from 'date-fns';
 import { Save, CheckCircle2, AlertCircle, Calendar as CalendarIcon, DollarSign, Users, MessageSquare, Mail, Zap, Link as LinkIcon, User as UserIcon, FileText, X, Copy, Check, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toBlob } from 'html-to-image';
+import rankDong from '../Rank/Đồng.webp';
+import rankBac from '../Rank/Bạc.webp';
+import rankVang from '../Rank/Vàng.webp';
+import rankBachKim from '../Rank/Bạch Kim.webp';
+import rankKimCuong from '../Rank/Kim Cương.webp';
+import rankCaoThu from '../Rank/Cao thủ.webp';
+import rankThachDau from '../Rank/Thách đấu.webp';
+import rankMaster from '../Rank/Rank.webp';
 
 interface ReportFormProps {
   user: UserProfile;
@@ -38,6 +46,7 @@ export default function ReportForm({ user }: ReportFormProps) {
   const summaryRef = useRef<HTMLDivElement>(null);
   const [partnerLeadCount, setPartnerLeadCount] = useState(0);
   const [mxhCount, setMxhCount] = useState(0);
+  const [monthlyRevenue, setMonthlyRevenue] = useState(0);
 
   useEffect(() => {
     if (user.role === 'admin') {
@@ -180,6 +189,52 @@ export default function ReportForm({ user }: ReportFormProps) {
     } finally {
       setCapturing(false);
     }
+  };
+
+  const fetchMonthlyRevenue = async (userId: string) => {
+    try {
+      const now = new Date();
+      const start = startOfMonth(now);
+      const startStr = format(start, 'yyyy-MM-dd');
+      
+      // We fetch from general_revenue as it's the "official" source
+      const q = query(
+        collection(db, 'general_revenue'),
+        where('date', '>=', startStr)
+      );
+      const snap = await getDocs(q);
+      
+      const reportUser = users.find(u => u.uid === userId) || user;
+      const userName = reportUser.displayName.trim().toLowerCase();
+      
+      let total = 0;
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (data.employeeName && data.employeeName.trim().toLowerCase() === userName) {
+          total += data.revenue || 0;
+        }
+      });
+      setMonthlyRevenue(total);
+    } catch (err) {
+      console.error('Error fetching monthly revenue:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (showSummary && summaryData) {
+      fetchMonthlyRevenue(summaryData.userId);
+    }
+  }, [showSummary, summaryData]);
+
+  const getRankInfo = (revenue: number) => {
+    if (revenue < 10000000) return { name: 'Đồng', icon: rankDong };
+    if (revenue < 15000000) return { name: 'Bạc', icon: rankBac };
+    if (revenue < 20000000) return { name: 'Vàng', icon: rankVang };
+    if (revenue < 25000000) return { name: 'Bạch Kim', icon: rankBachKim };
+    if (revenue < 35000000) return { name: 'Kim Cương', icon: rankKimCuong };
+    if (revenue < 50000000) return { name: 'Cao thủ', icon: rankCaoThu };
+    if (revenue < 80000000) return { name: 'Thách đấu', icon: rankThachDau };
+    return { name: 'Top Rank', icon: rankMaster };
   };
 
   const numericFields = [
@@ -377,21 +432,39 @@ export default function ReportForm({ user }: ReportFormProps) {
                   <div className="flex items-center gap-2.5">
                     {(() => {
                       const reportUser = users.find(u => u.uid === summaryData.userId) || user;
+                      const rankInfo = getRankInfo(monthlyRevenue);
                       return (
                         <>
-                          {reportUser.photoURL ? (
-                            <img 
-                              src={reportUser.photoURL} 
-                              alt={reportUser.displayName} 
-                              className="w-10 h-10 rounded-xl object-cover border-2 border-primary/10"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center text-primary">
-                              <UserIcon className="w-5 h-5" />
+                          <div className="relative group">
+                            {reportUser.photoURL ? (
+                              <img 
+                                src={reportUser.photoURL} 
+                                alt={reportUser.displayName} 
+                                className="w-10 h-10 rounded-xl object-cover border-2 border-primary/10"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center text-primary">
+                                <UserIcon className="w-5 h-5" />
+                              </div>
+                            )}
+                            <div className="absolute -left-3 top-1/2 -translate-y-1/2">
+                              <motion.div
+                                initial={{ scale: 0, rotate: -20 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                className="relative"
+                              >
+                                <img 
+                                  src={rankInfo.icon} 
+                                  alt={rankInfo.name} 
+                                  className="w-8 h-8 drop-shadow-md z-20" 
+                                  title={`Hạng: ${rankInfo.name} (${monthlyRevenue.toLocaleString('vi-VN')} đ)`}
+                                />
+                                <div className="absolute inset-0 bg-white/20 blur-sm rounded-full -z-10" />
+                              </motion.div>
                             </div>
-                          )}
-                          <div>
+                          </div>
+                          <div className="ml-4">
                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Nhân viên</p>
                             <p className="text-base font-black text-gray-900 leading-tight">{reportUser.displayName}</p>
                           </div>
