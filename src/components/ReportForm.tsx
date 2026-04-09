@@ -435,16 +435,14 @@ export default function ReportForm({ user }: ReportFormProps) {
                     {(() => {
                       const rankInfo = getRankInfo(monthlyRevenue);
                       return (
-                        <div className="w-12 h-12 relative bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center justify-center">
-                          <motion.img
-                            initial={{ scale: 0, rotate: -15 }}
-                            animate={{ scale: 1, rotate: 0 }}
-                            src={rankInfo.icon}
-                            alt={rankInfo.name}
-                            className="w-20 h-20 absolute drop-shadow-2xl z-20"
-                            title={`Hạng: ${rankInfo.name} (${monthlyRevenue.toLocaleString('vi-VN')} đ)`}
-                          />
-                        </div>
+                        <motion.img
+                          initial={{ scale: 0, rotate: -15 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          src={rankInfo.icon}
+                          alt={rankInfo.name}
+                          className="w-20 h-20 drop-shadow-2xl z-20"
+                          title={`Hạng: ${rankInfo.name} (${monthlyRevenue.toLocaleString('vi-VN')} đ)`}
+                        />
                       );
                     })()}
                   </div>
