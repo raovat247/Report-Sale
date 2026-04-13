@@ -11,6 +11,7 @@ import rankBac from '../Rank/Bạc.webp';
 import rankVang from '../Rank/Vàng.webp';
 import rankBachKim from '../Rank/Bạch Kim.webp';
 import rankKimCuong from '../Rank/Kim Cương.webp';
+import rankTinhAnh from '../Rank/Tinh anh.webp';
 import rankCaoThu from '../Rank/Cao thủ.webp';
 import rankThachDau from '../Rank/Thách đấu.webp';
 import rankMaster from '../Rank/Rank.webp';
@@ -281,13 +282,14 @@ export default function ReportForm({ user }: ReportFormProps) {
   }, [showSummary, summaryData]);
 
   const getRankInfo = (revenue: number) => {
-    if (revenue < 10000000) return { name: 'Đồng', icon: rankDong };
-    if (revenue < 15000000) return { name: 'Bạc', icon: rankBac };
-    if (revenue < 20000000) return { name: 'Vàng', icon: rankVang };
-    if (revenue < 25000000) return { name: 'Bạch Kim', icon: rankBachKim };
-    if (revenue < 35000000) return { name: 'Kim Cương', icon: rankKimCuong };
-    if (revenue < 50000000) return { name: 'Cao thủ', icon: rankCaoThu };
-    if (revenue < 80000000) return { name: 'Thách đấu', icon: rankThachDau };
+    if (revenue < 10000000)  return { name: 'Đồng',      icon: rankDong };
+    if (revenue < 15000000)  return { name: 'Bạc',       icon: rankBac };
+    if (revenue < 20000000)  return { name: 'Vàng',      icon: rankVang };
+    if (revenue < 25000000)  return { name: 'Bạch Kim',  icon: rankBachKim };
+    if (revenue < 35000000)  return { name: 'Kim Cương', icon: rankKimCuong };
+    if (revenue < 50000000)  return { name: 'Tinh Anh',  icon: rankTinhAnh };
+    if (revenue < 80000000)  return { name: 'Cao Thủ',   icon: rankCaoThu };
+    if (revenue < 150000000) return { name: 'Thách Đấu', icon: rankThachDau };
     return { name: 'Top Rank', icon: rankMaster };
   };
 
