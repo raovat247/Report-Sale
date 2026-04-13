@@ -1186,6 +1186,65 @@ export default function PartnerLeadManagement({ user }: Props) {
           {/* ── TAB: Thống kê ── */}
           {activeTab === 'stats' && (
             <div className="space-y-8">
+              {/* Funnel Chart */}
+              {(() => {
+                const total = statsLeads.length;
+                const funnelSteps = [
+                  { label: 'Tổng số Lead', count: total, color: '#f59e0b', textColor: '#92400e' },
+                  { label: 'Đang làm', count: statsLeads.filter(l => l.tinhTrang === 'ĐANG LÀM').length, color: '#f97316', textColor: '#7c2d12' },
+                  { label: 'Đã trao đổi chính sách', count: statsLeads.filter(l => l.daTraoDoiChinhSach).length, color: '#ec4899', textColor: '#831843' },
+                  { label: 'Đã họp online', count: statsLeads.filter(l => l.daHopDongOnline).length, color: '#a855f7', textColor: '#581c87' },
+                  { label: 'Đã ký hợp đồng', count: statsLeads.filter(l => l.daKyHopDong).length, color: '#6366f1', textColor: '#312e81' },
+                  { label: 'Thành công', count: statsLeads.filter(l => l.tinhTrang === 'THÀNH CÔNG').length, color: '#22c55e', textColor: '#14532d' },
+                  { label: 'Đã giới thiệu KH', count: statsLeads.filter(l => l.daGioiThieuKH).length, color: '#14b8a6', textColor: '#134e4a' },
+                ];
+                const maxCount = total || 1;
+                return (
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h3 className="font-bold text-gray-900 mb-6 text-center">Phễu chuyển đổi Lead</h3>
+                    <div className="flex flex-col items-center gap-1 w-full max-w-xl mx-auto">
+                      {funnelSteps.map((step, i) => {
+                        const pct = maxCount > 0 ? (step.count / maxCount) * 100 : 0;
+                        const minWidth = 30;
+                        const widthPct = minWidth + (pct / 100) * (100 - minWidth);
+                        return (
+                          <div key={step.label} className="w-full flex flex-col items-center">
+                            <div
+                              className="flex items-center justify-between px-4 py-2.5 rounded-lg transition-all duration-300 cursor-default"
+                              style={{
+                                width: `${widthPct}%`,
+                                backgroundColor: step.color,
+                                minWidth: 180,
+                              }}
+                              title={`${step.label}: ${step.count}`}
+                            >
+                              <span className="text-white text-xs font-semibold truncate flex-1">{step.label}</span>
+                              <span className="text-white text-sm font-extrabold ml-2 whitespace-nowrap">{step.count}</span>
+                            </div>
+                            {i < funnelSteps.length - 1 && (
+                              <div className="w-0 h-0" style={{
+                                borderLeft: '8px solid transparent',
+                                borderRight: '8px solid transparent',
+                                borderTop: `8px solid ${step.color}`,
+                                opacity: 0.5,
+                              }} />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-4 flex flex-wrap justify-center gap-3">
+                      {funnelSteps.map(step => (
+                        <div key={step.label} className="flex items-center gap-1.5">
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: step.color }} />
+                          <span className="text-xs text-gray-500">{step.label}: <strong className="text-gray-800">{step.count}</strong></span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Summary Cards */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 col-span-2 md:col-span-1 lg:col-span-1">
