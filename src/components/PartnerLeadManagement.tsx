@@ -624,6 +624,7 @@ export default function PartnerLeadManagement({ user }: Props) {
   const [filterEmployee, setFilterEmployee] = useState('');
   const [filterNhom, setFilterNhom] = useState('');
   const [searchName, setSearchName] = useState('');
+  const [funnelEmployee, setFunnelEmployee] = useState<string>(''); // uid, '' = tất cả
 
   // Detail modal
   const [selectedLead, setSelectedLead] = useState<PartnerLead | null>(null);
@@ -1193,51 +1194,83 @@ export default function PartnerLeadManagement({ user }: Props) {
             <div className="space-y-8">
               {/* Funnel Chart */}
               {(() => {
+                const funnelLeads = funnelEmployee
+                  ? statsLeads.filter(l => l.assignedTo === funnelEmployee)
+                  : statsLeads;
+                const selectedUser = users.find(u => u.uid === funnelEmployee);
+
                 const funnelSteps = [
-                  { label: 'Tổng số Lead',           count: statsLeads.length,                                           color: '#f59e0b' },
-                  { label: 'Đang làm',               count: statsLeads.filter(l => l.tinhTrang === 'ĐANG LÀM').length,  color: '#f97316' },
-                  { label: 'Đã trao đổi chính sách', count: statsLeads.filter(l => l.daTraoDoiChinhSach).length,        color: '#ec4899' },
-                  { label: 'Đã họp online',          count: statsLeads.filter(l => l.daHopDongOnline).length,           color: '#a855f7' },
-                  { label: 'Đã ký hợp đồng',         count: statsLeads.filter(l => l.daKyHopDong).length,              color: '#6366f1' },
-                  { label: 'Thành công',             count: statsLeads.filter(l => l.tinhTrang === 'THÀNH CÔNG').length, color: '#22c55e' },
-                  { label: 'Đã giới thiệu KH',       count: statsLeads.filter(l => l.daGioiThieuKH).length,            color: '#14b8a6' },
+                  { label: 'Tổng số Lead',           count: funnelLeads.length,                                            color: '#f59e0b' },
+                  { label: 'Đang làm',               count: funnelLeads.filter(l => l.tinhTrang === 'ĐANG LÀM').length,   color: '#f97316' },
+                  { label: 'Đã trao đổi chính sách', count: funnelLeads.filter(l => l.daTraoDoiChinhSach).length,         color: '#ec4899' },
+                  { label: 'Đã họp online',          count: funnelLeads.filter(l => l.daHopDongOnline).length,            color: '#a855f7' },
+                  { label: 'Đã ký hợp đồng',         count: funnelLeads.filter(l => l.daKyHopDong).length,               color: '#6366f1' },
+                  { label: 'Thành công',             count: funnelLeads.filter(l => l.tinhTrang === 'THÀNH CÔNG').length,  color: '#22c55e' },
+                  { label: 'Đã giới thiệu KH',       count: funnelLeads.filter(l => l.daGioiThieuKH).length,             color: '#14b8a6' },
                 ];
                 const n = funnelSteps.length;
-                // SVG dimensions
                 const svgW = 580, svgH = 364;
                 const stepH = svgH / n;
-                // Funnel: center at cx, half-width goes from topHW (top) to botHW (bottom tip)
                 const cx = 148, topHW = 138, botHW = 5;
                 const hw = (i: number) => topHW - (i / n) * (topHW - botHW);
 
+                const employeeList = users.filter(u => statsLeads.some(l => l.assignedTo === u.uid));
+
                 return (
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <h3 className="font-bold text-gray-900 mb-4 text-center">Phễu chuyển đổi Lead</h3>
+                    <h3 className="font-bold text-gray-900 mb-4 text-center">
+                      Phễu chuyển đổi Lead
+                      {selectedUser && <span className="ml-2 text-primary font-normal text-sm">— {selectedUser.displayName}</span>}
+                    </h3>
+
+                    {/* Employee filter pills */}
+                    {isAdmin && employeeList.length > 0 && (
+                      <div className="flex flex-wrap justify-center gap-2 mb-5">
+                        <button
+                          onClick={() => setFunnelEmployee('')}
+                          className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                            funnelEmployee === ''
+                              ? 'bg-primary text-white border-primary'
+                              : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
+                          }`}
+                        >
+                          Tất cả
+                        </button>
+                        {employeeList.map(u => (
+                          <button
+                            key={u.uid}
+                            onClick={() => setFunnelEmployee(funnelEmployee === u.uid ? '' : u.uid)}
+                            className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                              funnelEmployee === u.uid
+                                ? 'bg-primary text-white border-primary'
+                                : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
+                            }`}
+                          >
+                            {u.displayName}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     <svg viewBox={`0 0 ${svgW} ${svgH}`} width="100%" style={{ display: 'block', maxWidth: 620 }} className="mx-auto">
                       {funnelSteps.map((step, i) => {
                         const y0 = i * stepH, y1 = (i + 1) * stepH;
                         const midY = (y0 + y1) / 2;
                         const hw0 = hw(i), hw1 = hw(i + 1);
                         const pts = `${cx - hw0},${y0} ${cx + hw0},${y0} ${cx + hw1},${y1} ${cx - hw1},${y1}`;
-                        // connector starts at right edge midpoint
                         const connX = cx + (hw0 + hw1) / 2 + 6;
                         return (
                           <g key={step.label}>
                             <polygon points={pts} fill={step.color} stroke="white" strokeWidth="1.5" />
-                            {/* count inside trapezoid */}
                             <text x={cx} y={midY} textAnchor="middle" dominantBaseline="middle"
                               fill="white" fontSize="12" fontWeight="bold" style={{ pointerEvents: 'none' }}>
                               {step.count}
                             </text>
-                            {/* horizontal connector line */}
                             <line x1={connX} y1={midY} x2={298} y2={midY} stroke={step.color} strokeWidth="1.5" />
-                            {/* bullet dot */}
                             <circle cx={302} cy={midY} r={4} fill={step.color} />
-                            {/* label */}
                             <text x={314} y={midY - 1} dominantBaseline="middle" fill="#111827" fontSize="12" fontWeight="600">
                               {step.label}
                             </text>
-                            {/* count on right */}
                             <text x={svgW - 4} y={midY - 1} textAnchor="end" dominantBaseline="middle"
                               fill={step.color} fontSize="12" fontWeight="bold">
                               {step.count}
