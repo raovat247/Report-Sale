@@ -1226,10 +1226,10 @@ export default function PartnerLeadManagement({ user }: Props) {
                       {selectedUser && <span className="ml-2 text-primary font-normal text-sm">— {selectedUser.displayName}</span>}
                     </h3>
 
-                    {/* 2-column layout */}
+                    {/* 3-column layout: phễu | tỉ lệ | nhân viên */}
                     <div className="flex flex-col lg:flex-row gap-6 items-center">
 
-                      {/* LEFT: Funnel SVG */}
+                      {/* COL 1: Funnel SVG */}
                       <div className="flex-shrink-0" style={{ width: 540 }}>
                         <svg viewBox={`0 0 ${svgW} ${svgH}`} width="100%" style={{ display: 'block' }}>
                           {funnelSteps.map((step, i) => {
@@ -1260,55 +1260,21 @@ export default function PartnerLeadManagement({ user }: Props) {
                         </svg>
                       </div>
 
-                      {/* RIGHT: Employee pills + conversion rate */}
-                      <div className="lg:w-64 flex flex-col gap-5 lg:pt-2">
-
-                        {/* Employee filter pills */}
-                        {employeeList.length > 0 && (
-                          <div>
-                            <p className="text-xs text-gray-400 uppercase font-semibold mb-2 tracking-wide">Nhân viên</p>
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                onClick={() => setFunnelEmployee('')}
-                                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-                                  resolvedFunnelEmp === ''
-                                    ? 'bg-primary text-white border-primary'
-                                    : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
-                                }`}
-                              >
-                                Tất cả
-                              </button>
-                              {employeeList.map(u => (
-                                <button
-                                  key={u.uid}
-                                  onClick={() => setFunnelEmployee(resolvedFunnelEmp === u.uid ? '' : u.uid)}
-                                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-                                    resolvedFunnelEmp === u.uid
-                                      ? 'bg-primary text-white border-primary'
-                                      : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
-                                  }`}
-                                >
-                                  {u.displayName}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Conversion rate banner */}
-                        <div className="bg-gradient-to-b from-amber-50 to-teal-50 border border-teal-200 rounded-2xl px-5 py-4">
-                          <p className="text-xs text-gray-400 uppercase font-semibold mb-3 tracking-wide text-center">Tỉ lệ chuyển đổi</p>
+                      {/* COL 2: Conversion rate */}
+                      <div className="flex-shrink-0 w-44">
+                        <div className="bg-gradient-to-b from-amber-50 to-teal-50 border border-teal-200 rounded-2xl px-5 py-5">
+                          <p className="text-xs text-gray-400 uppercase font-semibold mb-4 tracking-wide text-center">Tỉ lệ chuyển đổi</p>
                           <div className="flex flex-col items-center gap-1">
                             <div className="text-center">
                               <p className="text-[10px] text-gray-500 font-semibold uppercase">Tổng số Lead</p>
                               <p className="text-2xl font-extrabold text-amber-500">{total}</p>
                             </div>
                             <div className="flex flex-col items-center gap-0.5 py-1">
-                              <div className="w-px h-4 bg-gray-300" />
+                              <div className="w-px h-5 bg-gray-300" />
                               <div className="bg-white border border-teal-300 rounded-full px-4 py-1.5 shadow-sm">
                                 <span className="text-base font-extrabold text-teal-600">{rate}%</span>
                               </div>
-                              <div className="w-px h-4 bg-gray-300" />
+                              <div className="w-px h-5 bg-gray-300" />
                             </div>
                             <div className="text-center">
                               <p className="text-[10px] text-gray-500 font-semibold uppercase">Đã giới thiệu KH</p>
@@ -1316,8 +1282,40 @@ export default function PartnerLeadManagement({ user }: Props) {
                             </div>
                           </div>
                         </div>
-
                       </div>
+
+                      {/* COL 3: Employee pills */}
+                      {employeeList.length > 0 && (
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-400 uppercase font-semibold mb-3 tracking-wide">Nhân viên</p>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => setFunnelEmployee('')}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                                resolvedFunnelEmp === ''
+                                  ? 'bg-primary text-white border-primary'
+                                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
+                              }`}
+                            >
+                              Tất cả
+                            </button>
+                            {employeeList.map(u => (
+                              <button
+                                key={u.uid}
+                                onClick={() => setFunnelEmployee(resolvedFunnelEmp === u.uid ? '' : u.uid)}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                                  resolvedFunnelEmp === u.uid
+                                    ? 'bg-primary text-white border-primary'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
+                                }`}
+                              >
+                                {u.displayName}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                     </div>
                   </div>
                 );
