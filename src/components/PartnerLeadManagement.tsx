@@ -1230,7 +1230,7 @@ export default function PartnerLeadManagement({ user }: Props) {
                     <div className="flex flex-col lg:flex-row gap-6 items-start">
 
                       {/* LEFT: Funnel SVG */}
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-shrink-0" style={{ width: 270 }}>
                         <svg viewBox={`0 0 ${svgW} ${svgH}`} width="100%" style={{ display: 'block' }}>
                           {funnelSteps.map((step, i) => {
                             const y0 = i * stepH, y1 = (i + 1) * stepH;
