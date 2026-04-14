@@ -738,6 +738,7 @@ export default function PartnerLeadManagement({ user }: Props) {
   };
 
   // ── Filters applied ────────────────────────────────────────────────────────
+  const myLeadsForList = isAdmin ? leads : leads.filter(l => l.assignedTo === user.uid);
   const filteredLeads = myLeadsForList.filter(l => {
     if (filterStatus && l.tinhTrang !== filterStatus) return false;
     if (filterEmployee && l.assignedTo !== filterEmployee) return false;
@@ -888,7 +889,6 @@ export default function PartnerLeadManagement({ user }: Props) {
   // ─── Stats ───────────────────────────────────────────────────────────────
 
   const statsLeads = leads; // tất cả leads cho thống kê (mọi role đều thấy để so sánh)
-  const myLeadsForList = isAdmin ? leads : leads.filter(l => l.assignedTo === user.uid);
 
   const byStatus = TINH_TRANG_OPTIONS.map(s => ({
     name: s,
