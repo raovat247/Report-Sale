@@ -888,7 +888,12 @@ export default function PartnerLeadManagement({ user }: Props) {
 
   // ─── Stats ───────────────────────────────────────────────────────────────
 
-  const statsLeads = leads; // tất cả leads cho thống kê (mọi role đều thấy để so sánh)
+  const allStatsLeads = leads; // toàn bộ, dùng cho phễu + employee list
+  // Lọc theo nhân viên đang chọn trên phễu (đồng bộ với cards/chart bên dưới)
+  const resolvedFunnelEmpForStats = funnelEmployee === '__self__' ? user.uid : funnelEmployee;
+  const statsLeads = resolvedFunnelEmpForStats
+    ? allStatsLeads.filter(l => l.assignedTo === resolvedFunnelEmpForStats)
+    : allStatsLeads;
 
   const byStatus = TINH_TRANG_OPTIONS.map(s => ({
     name: s,
@@ -904,7 +909,7 @@ export default function PartnerLeadManagement({ user }: Props) {
   };
 
   const perEmployee = users.map(u => {
-    const myLeads = statsLeads.filter(l => l.assignedTo === u.uid);
+    const myLeads = allStatsLeads.filter(l => l.assignedTo === u.uid);
     const chuaXuLy = myLeads.filter(
       l => l.tinhTrang === 'CHƯA XỬ LÝ' || (l.tinhTrang === 'TIỀM NĂNG' && (l.lienHe?.length ?? 0) === 0)
     ).length;
@@ -1187,10 +1192,10 @@ export default function PartnerLeadManagement({ user }: Props) {
               {/* Funnel Chart */}
               {(() => {
                 // '__self__' = mặc định về uid của user hiện tại
-                const resolvedFunnelEmp = funnelEmployee === '__self__' ? user.uid : funnelEmployee;
+                const resolvedFunnelEmp = resolvedFunnelEmpForStats;
                 const funnelLeads = resolvedFunnelEmp
-                  ? statsLeads.filter(l => l.assignedTo === resolvedFunnelEmp)
-                  : statsLeads;
+                  ? allStatsLeads.filter(l => l.assignedTo === resolvedFunnelEmp)
+                  : allStatsLeads;
                 const selectedUser = users.find(u => u.uid === resolvedFunnelEmp);
 
                 const funnelSteps = [
@@ -1208,7 +1213,7 @@ export default function PartnerLeadManagement({ user }: Props) {
                 const cx = 148, topHW = 138, botHW = 5;
                 const hw = (i: number) => topHW - (i / n) * (topHW - botHW);
 
-                const employeeList = users.filter(u => statsLeads.some(l => l.assignedTo === u.uid));
+                const employeeList = users.filter(u => allStatsLeads.some(l => l.assignedTo === u.uid));
 
                 return (
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
