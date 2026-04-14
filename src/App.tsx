@@ -186,7 +186,6 @@ function Layout({ children, user, settings }: { children: React.ReactNode; user:
     { label: 'Date Report', path: '/dashboard', icon: <LayoutDashboard className="w-5 h-5" />, roles: ['admin', 'sales'] },
     { label: 'Bảng xếp hạng', path: '/leaderboard', icon: <Trophy className="w-5 h-5" />, roles: ['admin', 'sales'] },
     { label: 'Mục tiêu', path: '/targets', icon: <Target className="w-5 h-5" />, roles: ['admin'] },
-    { label: 'Danh sách đối tác', path: '/partners', icon: <Users className="w-5 h-5" />, roles: ['admin', 'sales'] },
     { label: 'Quản lý Lead', path: '/lead-partners', icon: <Briefcase className="w-5 h-5" />, roles: ['admin', 'sales'] },
     { label: 'Bài đăng MXH', path: '/social-posts', icon: <Share2 className="w-5 h-5" />, roles: ['admin', 'sales'] },
     { label: 'Thành viên', path: '/users', icon: <UserCheck className="w-5 h-5" />, roles: ['admin'] },
