@@ -750,7 +750,12 @@ export default function PartnerLeadManagement({ user }: Props) {
     if (filterStatus && l.tinhTrang !== filterStatus) return false;
     if (filterEmployee && l.assignedTo !== filterEmployee) return false;
     if (filterNhom && l.nhom !== filterNhom) return false;
-    if (searchName && !normalizeStr(l.tenKhachHang).includes(normalizeStr(searchName))) return false;
+    if (searchName) {
+      const q = normalizeStr(searchName);
+      const matchName = normalizeStr(l.tenKhachHang).includes(q);
+      const matchPhone = (l.sdt || '').replace(/\s/g, '').includes(searchName.replace(/\s/g, ''));
+      if (!matchName && !matchPhone) return false;
+    }
     return true;
   });
 
@@ -1023,7 +1028,7 @@ export default function PartnerLeadManagement({ user }: Props) {
               <div className="flex flex-wrap gap-3">
                 <input
                   type="text"
-                  placeholder="Tìm theo tên KH..."
+                  placeholder="Tìm theo tên KH hoặc SĐT..."
                   value={searchName}
                   onChange={e => setSearchName(e.target.value)}
                   className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1 min-w-[180px] focus:ring-2 focus:ring-primary/20 outline-none"
