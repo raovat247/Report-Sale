@@ -1215,98 +1215,110 @@ export default function PartnerLeadManagement({ user }: Props) {
 
                 const employeeList = users.filter(u => allStatsLeads.some(l => l.assignedTo === u.uid));
 
+                const total = funnelSteps[0].count;
+                const gioiThieu = funnelSteps[funnelSteps.length - 1].count;
+                const rate = total > 0 ? ((gioiThieu / total) * 100).toFixed(1) : '0.0';
+
                 return (
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <h3 className="font-bold text-gray-900 mb-4 text-center">
+                    <h3 className="font-bold text-gray-900 mb-4">
                       Phễu chuyển đổi Lead
                       {selectedUser && <span className="ml-2 text-primary font-normal text-sm">— {selectedUser.displayName}</span>}
                     </h3>
 
-                    {/* Employee filter pills — tất cả role đều thấy để so sánh */}
-                    {employeeList.length > 0 && (
-                      <div className="flex flex-wrap justify-center gap-2 mb-5">
-                        <button
-                          onClick={() => setFunnelEmployee('')}
-                          className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-                            resolvedFunnelEmp === ''
-                              ? 'bg-primary text-white border-primary'
-                              : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
-                          }`}
-                        >
-                          Tất cả
-                        </button>
-                        {employeeList.map(u => (
-                          <button
-                            key={u.uid}
-                            onClick={() => setFunnelEmployee(resolvedFunnelEmp === u.uid ? '' : u.uid)}
-                            className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-                              resolvedFunnelEmp === u.uid
-                                ? 'bg-primary text-white border-primary'
-                                : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
-                            }`}
-                          >
-                            {u.displayName}
-                          </button>
-                        ))}
+                    {/* 2-column layout */}
+                    <div className="flex flex-col lg:flex-row gap-6 items-start">
+
+                      {/* LEFT: Funnel SVG */}
+                      <div className="flex-1 min-w-0">
+                        <svg viewBox={`0 0 ${svgW} ${svgH}`} width="100%" style={{ display: 'block' }}>
+                          {funnelSteps.map((step, i) => {
+                            const y0 = i * stepH, y1 = (i + 1) * stepH;
+                            const midY = (y0 + y1) / 2;
+                            const hw0 = hw(i), hw1 = hw(i + 1);
+                            const pts = `${cx - hw0},${y0} ${cx + hw0},${y0} ${cx + hw1},${y1} ${cx - hw1},${y1}`;
+                            const connX = cx + (hw0 + hw1) / 2 + 6;
+                            return (
+                              <g key={step.label}>
+                                <polygon points={pts} fill={step.color} stroke="white" strokeWidth="1.5" />
+                                <text x={cx} y={midY} textAnchor="middle" dominantBaseline="middle"
+                                  fill="white" fontSize="12" fontWeight="bold" style={{ pointerEvents: 'none' }}>
+                                  {step.count}
+                                </text>
+                                <line x1={connX} y1={midY} x2={298} y2={midY} stroke={step.color} strokeWidth="1.5" />
+                                <circle cx={302} cy={midY} r={4} fill={step.color} />
+                                <text x={314} y={midY - 1} dominantBaseline="middle" fill="#111827" fontSize="12" fontWeight="600">
+                                  {step.label}
+                                </text>
+                                <text x={svgW - 4} y={midY - 1} textAnchor="end" dominantBaseline="middle"
+                                  fill={step.color} fontSize="12" fontWeight="bold">
+                                  {step.count}
+                                </text>
+                              </g>
+                            );
+                          })}
+                        </svg>
                       </div>
-                    )}
 
-                    <svg viewBox={`0 0 ${svgW} ${svgH}`} width="100%" style={{ display: 'block', maxWidth: 620 }} className="mx-auto">
-                      {funnelSteps.map((step, i) => {
-                        const y0 = i * stepH, y1 = (i + 1) * stepH;
-                        const midY = (y0 + y1) / 2;
-                        const hw0 = hw(i), hw1 = hw(i + 1);
-                        const pts = `${cx - hw0},${y0} ${cx + hw0},${y0} ${cx + hw1},${y1} ${cx - hw1},${y1}`;
-                        const connX = cx + (hw0 + hw1) / 2 + 6;
-                        return (
-                          <g key={step.label}>
-                            <polygon points={pts} fill={step.color} stroke="white" strokeWidth="1.5" />
-                            <text x={cx} y={midY} textAnchor="middle" dominantBaseline="middle"
-                              fill="white" fontSize="12" fontWeight="bold" style={{ pointerEvents: 'none' }}>
-                              {step.count}
-                            </text>
-                            <line x1={connX} y1={midY} x2={298} y2={midY} stroke={step.color} strokeWidth="1.5" />
-                            <circle cx={302} cy={midY} r={4} fill={step.color} />
-                            <text x={314} y={midY - 1} dominantBaseline="middle" fill="#111827" fontSize="12" fontWeight="600">
-                              {step.label}
-                            </text>
-                            <text x={svgW - 4} y={midY - 1} textAnchor="end" dominantBaseline="middle"
-                              fill={step.color} fontSize="12" fontWeight="bold">
-                              {step.count}
-                            </text>
-                          </g>
-                        );
-                      })}
-                    </svg>
+                      {/* RIGHT: Employee pills + conversion rate */}
+                      <div className="lg:w-64 flex flex-col gap-5 lg:pt-2">
 
-                    {/* Conversion rate banner */}
-                    {(() => {
-                      const total = funnelSteps[0].count;
-                      const gioiThieu = funnelSteps[funnelSteps.length - 1].count;
-                      const rate = total > 0 ? ((gioiThieu / total) * 100).toFixed(1) : '0.0';
-                      return (
-                        <div className="mt-5 flex justify-center">
-                          <div className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-50 to-teal-50 border border-teal-200 rounded-2xl px-6 py-3">
+                        {/* Employee filter pills */}
+                        {employeeList.length > 0 && (
+                          <div>
+                            <p className="text-xs text-gray-400 uppercase font-semibold mb-2 tracking-wide">Nhân viên</p>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => setFunnelEmployee('')}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                                  resolvedFunnelEmp === ''
+                                    ? 'bg-primary text-white border-primary'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
+                                }`}
+                              >
+                                Tất cả
+                              </button>
+                              {employeeList.map(u => (
+                                <button
+                                  key={u.uid}
+                                  onClick={() => setFunnelEmployee(resolvedFunnelEmp === u.uid ? '' : u.uid)}
+                                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                                    resolvedFunnelEmp === u.uid
+                                      ? 'bg-primary text-white border-primary'
+                                      : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
+                                  }`}
+                                >
+                                  {u.displayName}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Conversion rate banner */}
+                        <div className="bg-gradient-to-b from-amber-50 to-teal-50 border border-teal-200 rounded-2xl px-5 py-4">
+                          <p className="text-xs text-gray-400 uppercase font-semibold mb-3 tracking-wide text-center">Tỉ lệ chuyển đổi</p>
+                          <div className="flex flex-col items-center gap-1">
                             <div className="text-center">
-                              <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Tổng số Lead</p>
+                              <p className="text-[10px] text-gray-500 font-semibold uppercase">Tổng số Lead</p>
                               <p className="text-2xl font-extrabold text-amber-500">{total}</p>
                             </div>
-                            <div className="flex flex-col items-center gap-0.5 px-2">
-                              <div className="w-16 h-px bg-gray-300" />
-                              <div className="bg-white border border-teal-300 rounded-full px-3 py-1 shadow-sm">
-                                <span className="text-sm font-extrabold text-teal-600">{rate}%</span>
+                            <div className="flex flex-col items-center gap-0.5 py-1">
+                              <div className="w-px h-4 bg-gray-300" />
+                              <div className="bg-white border border-teal-300 rounded-full px-4 py-1.5 shadow-sm">
+                                <span className="text-base font-extrabold text-teal-600">{rate}%</span>
                               </div>
-                              <div className="w-16 h-px bg-gray-300" />
-                              <p className="text-[10px] text-gray-400 font-medium mt-0.5">tỉ lệ chuyển đổi</p>
+                              <div className="w-px h-4 bg-gray-300" />
                             </div>
                             <div className="text-center">
-                              <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Đã giới thiệu KH</p>
+                              <p className="text-[10px] text-gray-500 font-semibold uppercase">Đã giới thiệu KH</p>
                               <p className="text-2xl font-extrabold text-teal-500">{gioiThieu}</p>
                             </div>
                           </div>
                         </div>
-                      );
-                    })()}
+
+                      </div>
+                    </div>
                   </div>
                 );
               })()}
