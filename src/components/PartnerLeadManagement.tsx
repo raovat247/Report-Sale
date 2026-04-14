@@ -624,7 +624,7 @@ export default function PartnerLeadManagement({ user }: Props) {
   const [filterEmployee, setFilterEmployee] = useState('');
   const [filterNhom, setFilterNhom] = useState('');
   const [searchName, setSearchName] = useState('');
-  const [funnelEmployee, setFunnelEmployee] = useState<string>(''); // uid, '' = tất cả
+  const [funnelEmployee, setFunnelEmployee] = useState<string>('__self__'); // uid, '' = tất cả, '__self__' = init
 
   // Detail modal
   const [selectedLead, setSelectedLead] = useState<PartnerLead | null>(null);
@@ -660,16 +660,7 @@ export default function PartnerLeadManagement({ user }: Props) {
     setLoading(true);
     try {
       const { collection, getDocs, query, where, orderBy } = await import('firebase/firestore');
-      let q;
-      if (isAdmin) {
-        q = query(collection(db, 'partner_leads'), orderBy('createdAt', 'desc'));
-      } else {
-        q = query(
-          collection(db, 'partner_leads'),
-          where('assignedTo', '==', user.uid),
-          orderBy('createdAt', 'desc')
-        );
-      }
+      const q = query(collection(db, 'partner_leads'), orderBy('createdAt', 'desc'));
       const snap = await getDocs(q);
       const list: PartnerLead[] = [];
       snap.forEach(d => list.push({ id: d.id, ...d.data() } as PartnerLead));
@@ -747,7 +738,7 @@ export default function PartnerLeadManagement({ user }: Props) {
   };
 
   // ── Filters applied ────────────────────────────────────────────────────────
-  const filteredLeads = leads.filter(l => {
+  const filteredLeads = myLeadsForList.filter(l => {
     if (filterStatus && l.tinhTrang !== filterStatus) return false;
     if (filterEmployee && l.assignedTo !== filterEmployee) return false;
     if (filterNhom && l.nhom !== filterNhom) return false;
@@ -896,7 +887,8 @@ export default function PartnerLeadManagement({ user }: Props) {
 
   // ─── Stats ───────────────────────────────────────────────────────────────
 
-  const statsLeads = isAdmin ? leads : leads.filter(l => l.assignedTo === user.uid);
+  const statsLeads = leads; // tất cả leads cho thống kê (mọi role đều thấy để so sánh)
+  const myLeadsForList = isAdmin ? leads : leads.filter(l => l.assignedTo === user.uid);
 
   const byStatus = TINH_TRANG_OPTIONS.map(s => ({
     name: s,
@@ -1194,10 +1186,12 @@ export default function PartnerLeadManagement({ user }: Props) {
             <div className="space-y-8">
               {/* Funnel Chart */}
               {(() => {
-                const funnelLeads = funnelEmployee
-                  ? statsLeads.filter(l => l.assignedTo === funnelEmployee)
+                // '__self__' = mặc định về uid của user hiện tại
+                const resolvedFunnelEmp = funnelEmployee === '__self__' ? user.uid : funnelEmployee;
+                const funnelLeads = resolvedFunnelEmp
+                  ? statsLeads.filter(l => l.assignedTo === resolvedFunnelEmp)
                   : statsLeads;
-                const selectedUser = users.find(u => u.uid === funnelEmployee);
+                const selectedUser = users.find(u => u.uid === resolvedFunnelEmp);
 
                 const funnelSteps = [
                   { label: 'Tổng số Lead',           count: funnelLeads.length,                                            color: '#f59e0b' },
@@ -1223,13 +1217,13 @@ export default function PartnerLeadManagement({ user }: Props) {
                       {selectedUser && <span className="ml-2 text-primary font-normal text-sm">— {selectedUser.displayName}</span>}
                     </h3>
 
-                    {/* Employee filter pills */}
-                    {isAdmin && employeeList.length > 0 && (
+                    {/* Employee filter pills — tất cả role đều thấy để so sánh */}
+                    {employeeList.length > 0 && (
                       <div className="flex flex-wrap justify-center gap-2 mb-5">
                         <button
                           onClick={() => setFunnelEmployee('')}
                           className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-                            funnelEmployee === ''
+                            resolvedFunnelEmp === ''
                               ? 'bg-primary text-white border-primary'
                               : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
                           }`}
@@ -1239,9 +1233,9 @@ export default function PartnerLeadManagement({ user }: Props) {
                         {employeeList.map(u => (
                           <button
                             key={u.uid}
-                            onClick={() => setFunnelEmployee(funnelEmployee === u.uid ? '' : u.uid)}
+                            onClick={() => setFunnelEmployee(resolvedFunnelEmp === u.uid ? '' : u.uid)}
                             className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-                              funnelEmployee === u.uid
+                              resolvedFunnelEmp === u.uid
                                 ? 'bg-primary text-white border-primary'
                                 : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
                             }`}
