@@ -1188,59 +1188,59 @@ export default function PartnerLeadManagement({ user }: Props) {
             <div className="space-y-8">
               {/* Funnel Chart */}
               {(() => {
-                const total = statsLeads.length;
                 const funnelSteps = [
-                  { label: 'Tổng số Lead', count: total, color: '#f59e0b', textColor: '#92400e' },
-                  { label: 'Đang làm', count: statsLeads.filter(l => l.tinhTrang === 'ĐANG LÀM').length, color: '#f97316', textColor: '#7c2d12' },
-                  { label: 'Đã trao đổi chính sách', count: statsLeads.filter(l => l.daTraoDoiChinhSach).length, color: '#ec4899', textColor: '#831843' },
-                  { label: 'Đã họp online', count: statsLeads.filter(l => l.daHopDongOnline).length, color: '#a855f7', textColor: '#581c87' },
-                  { label: 'Đã ký hợp đồng', count: statsLeads.filter(l => l.daKyHopDong).length, color: '#6366f1', textColor: '#312e81' },
-                  { label: 'Thành công', count: statsLeads.filter(l => l.tinhTrang === 'THÀNH CÔNG').length, color: '#22c55e', textColor: '#14532d' },
-                  { label: 'Đã giới thiệu KH', count: statsLeads.filter(l => l.daGioiThieuKH).length, color: '#14b8a6', textColor: '#134e4a' },
+                  { label: 'Tổng số Lead',           count: statsLeads.length,                                           color: '#f59e0b' },
+                  { label: 'Đang làm',               count: statsLeads.filter(l => l.tinhTrang === 'ĐANG LÀM').length,  color: '#f97316' },
+                  { label: 'Đã trao đổi chính sách', count: statsLeads.filter(l => l.daTraoDoiChinhSach).length,        color: '#ec4899' },
+                  { label: 'Đã họp online',          count: statsLeads.filter(l => l.daHopDongOnline).length,           color: '#a855f7' },
+                  { label: 'Đã ký hợp đồng',         count: statsLeads.filter(l => l.daKyHopDong).length,              color: '#6366f1' },
+                  { label: 'Thành công',             count: statsLeads.filter(l => l.tinhTrang === 'THÀNH CÔNG').length, color: '#22c55e' },
+                  { label: 'Đã giới thiệu KH',       count: statsLeads.filter(l => l.daGioiThieuKH).length,            color: '#14b8a6' },
                 ];
-                const maxCount = total || 1;
+                const n = funnelSteps.length;
+                // SVG dimensions
+                const svgW = 580, svgH = 364;
+                const stepH = svgH / n;
+                // Funnel: center at cx, half-width goes from topHW (top) to botHW (bottom tip)
+                const cx = 148, topHW = 138, botHW = 5;
+                const hw = (i: number) => topHW - (i / n) * (topHW - botHW);
+
                 return (
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <h3 className="font-bold text-gray-900 mb-6 text-center">Phễu chuyển đổi Lead</h3>
-                    <div className="flex flex-col items-center gap-1 w-full max-w-xl mx-auto">
+                    <h3 className="font-bold text-gray-900 mb-4 text-center">Phễu chuyển đổi Lead</h3>
+                    <svg viewBox={`0 0 ${svgW} ${svgH}`} width="100%" style={{ display: 'block', maxWidth: 620 }} className="mx-auto">
                       {funnelSteps.map((step, i) => {
-                        const pct = maxCount > 0 ? (step.count / maxCount) * 100 : 0;
-                        const minWidth = 30;
-                        const widthPct = minWidth + (pct / 100) * (100 - minWidth);
+                        const y0 = i * stepH, y1 = (i + 1) * stepH;
+                        const midY = (y0 + y1) / 2;
+                        const hw0 = hw(i), hw1 = hw(i + 1);
+                        const pts = `${cx - hw0},${y0} ${cx + hw0},${y0} ${cx + hw1},${y1} ${cx - hw1},${y1}`;
+                        // connector starts at right edge midpoint
+                        const connX = cx + (hw0 + hw1) / 2 + 6;
                         return (
-                          <div key={step.label} className="w-full flex flex-col items-center">
-                            <div
-                              className="flex items-center justify-between px-4 py-2.5 rounded-lg transition-all duration-300 cursor-default"
-                              style={{
-                                width: `${widthPct}%`,
-                                backgroundColor: step.color,
-                                minWidth: 180,
-                              }}
-                              title={`${step.label}: ${step.count}`}
-                            >
-                              <span className="text-white text-xs font-semibold truncate flex-1">{step.label}</span>
-                              <span className="text-white text-sm font-extrabold ml-2 whitespace-nowrap">{step.count}</span>
-                            </div>
-                            {i < funnelSteps.length - 1 && (
-                              <div className="w-0 h-0" style={{
-                                borderLeft: '8px solid transparent',
-                                borderRight: '8px solid transparent',
-                                borderTop: `8px solid ${step.color}`,
-                                opacity: 0.5,
-                              }} />
-                            )}
-                          </div>
+                          <g key={step.label}>
+                            <polygon points={pts} fill={step.color} stroke="white" strokeWidth="1.5" />
+                            {/* count inside trapezoid */}
+                            <text x={cx} y={midY} textAnchor="middle" dominantBaseline="middle"
+                              fill="white" fontSize="12" fontWeight="bold" style={{ pointerEvents: 'none' }}>
+                              {step.count}
+                            </text>
+                            {/* horizontal connector line */}
+                            <line x1={connX} y1={midY} x2={298} y2={midY} stroke={step.color} strokeWidth="1.5" />
+                            {/* bullet dot */}
+                            <circle cx={302} cy={midY} r={4} fill={step.color} />
+                            {/* label */}
+                            <text x={314} y={midY - 1} dominantBaseline="middle" fill="#111827" fontSize="12" fontWeight="600">
+                              {step.label}
+                            </text>
+                            {/* count on right */}
+                            <text x={svgW - 4} y={midY - 1} textAnchor="end" dominantBaseline="middle"
+                              fill={step.color} fontSize="12" fontWeight="bold">
+                              {step.count}
+                            </text>
+                          </g>
                         );
                       })}
-                    </div>
-                    <div className="mt-4 flex flex-wrap justify-center gap-3">
-                      {funnelSteps.map(step => (
-                        <div key={step.label} className="flex items-center gap-1.5">
-                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: step.color }} />
-                          <span className="text-xs text-gray-500">{step.label}: <strong className="text-gray-800">{step.count}</strong></span>
-                        </div>
-                      ))}
-                    </div>
+                    </svg>
                   </div>
                 );
               })()}
