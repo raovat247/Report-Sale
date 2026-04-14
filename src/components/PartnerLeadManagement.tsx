@@ -1279,6 +1279,35 @@ export default function PartnerLeadManagement({ user }: Props) {
                         );
                       })}
                     </svg>
+
+                    {/* Conversion rate banner */}
+                    {(() => {
+                      const total = funnelSteps[0].count;
+                      const gioiThieu = funnelSteps[funnelSteps.length - 1].count;
+                      const rate = total > 0 ? ((gioiThieu / total) * 100).toFixed(1) : '0.0';
+                      return (
+                        <div className="mt-5 flex justify-center">
+                          <div className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-50 to-teal-50 border border-teal-200 rounded-2xl px-6 py-3">
+                            <div className="text-center">
+                              <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Tổng số Lead</p>
+                              <p className="text-2xl font-extrabold text-amber-500">{total}</p>
+                            </div>
+                            <div className="flex flex-col items-center gap-0.5 px-2">
+                              <div className="w-16 h-px bg-gray-300" />
+                              <div className="bg-white border border-teal-300 rounded-full px-3 py-1 shadow-sm">
+                                <span className="text-sm font-extrabold text-teal-600">{rate}%</span>
+                              </div>
+                              <div className="w-16 h-px bg-gray-300" />
+                              <p className="text-[10px] text-gray-400 font-medium mt-0.5">tỉ lệ chuyển đổi</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Đã giới thiệu KH</p>
+                              <p className="text-2xl font-extrabold text-teal-500">{gioiThieu}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })()}
