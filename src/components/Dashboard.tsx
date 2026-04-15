@@ -95,8 +95,10 @@ export default function Dashboard({ user }: DashboardProps) {
       await setDoc(doc(db, 'penalties', key), { uid, date, paid: true, confirmedAt: new Date().toISOString() });
       setPaidPenalties(prev => ({ ...prev, [key]: true }));
       toast.success('Đã xác nhận đóng phạt');
-    } catch {
-      toast.error('Lỗi xác nhận');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('Penalty confirm error:', msg);
+      toast.error('Lỗi xác nhận: ' + msg);
     } finally {
       setConfirmingPenalty(null);
     }
