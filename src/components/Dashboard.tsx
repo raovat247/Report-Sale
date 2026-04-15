@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, doc, setDoc, getDoc } from 'firebase/firestore';
 import { DailyReport, MonthlyTarget, UserProfile, PartnerLead } from '../types';
-import { format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfYear, endOfYear } from 'date-fns';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-  LineChart, Line, PieChart, Pie, Cell, AreaChart, Area 
+import { format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfYear, endOfYear, addDays, isWeekend } from 'date-fns';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
-import { 
-  TrendingUp, Users, DollarSign, Filter, ChevronDown, ChevronLeft, ChevronRight
+import {
+  TrendingUp, Users, DollarSign, Filter, ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface DashboardProps {
   user: UserProfile;
@@ -49,11 +50,57 @@ export default function Dashboard({ user }: DashboardProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
+  // ── Báo cáo hàng ngày / phạt ──────────────────────────────────────────────
+  const [attendanceReports, setAttendanceReports] = useState<DailyReport[]>([]);
+  const [paidPenalties, setPaidPenalties] = useState<Record<string, boolean>>({}); // key: `${uid}_${date}`
+  const [confirmingPenalty, setConfirmingPenalty] = useState<string | null>(null);
+  // Tuần hiện tại (T2–T6)
+  const attendanceWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  const attendanceWeekEnd   = format(addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 4), 'yyyy-MM-dd');
+  const workdays = Array.from({ length: 5 }, (_, i) =>
+    format(addDays(parseISO(attendanceWeekStart), i), 'yyyy-MM-dd')
+  ).filter(d => !isWeekend(parseISO(d)));
+
   const isAdmin = user.role === 'admin';
 
   useEffect(() => {
     fetchData();
   }, [timeRange, selectedDate, user.uid]);
+
+  useEffect(() => {
+    fetchAttendance();
+  }, []);
+
+  const fetchAttendance = useCallback(async () => {
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'daily_reports'),
+        where('date', '>=', attendanceWeekStart),
+        where('date', '<=', attendanceWeekEnd)
+      ));
+      setAttendanceReports(snap.docs.map(d => d.data() as DailyReport));
+
+      // Load paid penalties
+      const penaltySnap = await getDocs(collection(db, 'penalties'));
+      const paid: Record<string, boolean> = {};
+      penaltySnap.docs.forEach(d => { paid[d.id] = d.data().paid === true; });
+      setPaidPenalties(paid);
+    } catch { /* ignore */ }
+  }, [attendanceWeekStart, attendanceWeekEnd]);
+
+  const confirmPenaltyPaid = async (uid: string, date: string) => {
+    const key = `${uid}_${date}`;
+    setConfirmingPenalty(key);
+    try {
+      await setDoc(doc(db, 'penalties', key), { uid, date, paid: true, confirmedAt: new Date().toISOString() });
+      setPaidPenalties(prev => ({ ...prev, [key]: true }));
+      toast.success('Đã xác nhận đóng phạt');
+    } catch {
+      toast.error('Lỗi xác nhận');
+    } finally {
+      setConfirmingPenalty(null);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -446,6 +493,133 @@ export default function Dashboard({ user }: DashboardProps) {
           </div>
         </div>
       </div>
+
+      {/* Daily Attendance & Penalty Table */}
+      {isAdmin && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
+          <div className="p-6 border-b border-gray-50 flex flex-wrap justify-between items-center gap-3">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Báo cáo hàng ngày tuần này</h3>
+              <p className="text-xs text-gray-400 mt-0.5">{attendanceWeekStart} → {attendanceWeekEnd} · Phạt 10.000đ/ngày không báo cáo</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="border-b border-gray-50 bg-gray-50/60">
+                  <th className="px-6 py-3 text-xs font-semibold text-gray-400 uppercase whitespace-nowrap">Nhân viên</th>
+                  {workdays.map(d => (
+                    <th key={d} className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase text-center whitespace-nowrap">
+                      {format(parseISO(d), 'EEE dd/MM').replace('Mon','T2').replace('Tue','T3').replace('Wed','T4').replace('Thu','T5').replace('Fri','T6')}
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 text-xs font-semibold text-red-400 uppercase text-center whitespace-nowrap">Số ngày thiếu</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-red-400 uppercase text-center whitespace-nowrap">Tổng phạt</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-green-500 uppercase text-center whitespace-nowrap">Đã đóng</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {users.map(u => {
+                  const today = format(new Date(), 'yyyy-MM-dd');
+                  const missingDays = workdays.filter(d => {
+                    if (d > today) return false; // chưa đến ngày thì không tính
+                    return !attendanceReports.some(r => r.userId === u.uid && r.date === d);
+                  });
+                  const totalPenalty = missingDays.length * 10000;
+                  const paidCount = missingDays.filter(d => paidPenalties[`${u.uid}_${d}`]).length;
+                  const unpaidCount = missingDays.length - paidCount;
+                  const remainingPenalty = unpaidCount * 10000;
+
+                  return (
+                    <tr key={u.uid} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">
+                            {u.displayName?.charAt(0)}
+                          </div>
+                          <span className="font-semibold text-gray-900 whitespace-nowrap">{u.displayName}</span>
+                        </div>
+                      </td>
+                      {workdays.map(d => {
+                        const hasReport = attendanceReports.some(r => r.userId === u.uid && r.date === d);
+                        const isFuture = d > today;
+                        const isPaid = paidPenalties[`${u.uid}_${d}`];
+                        return (
+                          <td key={d} className="px-4 py-4 text-center">
+                            {isFuture ? (
+                              <span className="text-gray-300 text-xs">—</span>
+                            ) : hasReport ? (
+                              <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto" />
+                            ) : isPaid ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                <CheckCircle2 className="w-3 h-3" />Đã đóng
+                              </span>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <AlertCircle className="w-5 h-5 text-red-400 mx-auto" />
+                                <button
+                                  onClick={() => confirmPenaltyPaid(u.uid, d)}
+                                  disabled={confirmingPenalty === `${u.uid}_${d}`}
+                                  className="text-[10px] font-semibold text-white bg-red-400 hover:bg-red-500 px-2 py-0.5 rounded-full whitespace-nowrap transition-colors disabled:opacity-50"
+                                >
+                                  {confirmingPenalty === `${u.uid}_${d}` ? '...' : 'Xác nhận'}
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="px-4 py-4 text-center">
+                        <span className={`font-bold ${missingDays.length > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                          {missingDays.length}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        {remainingPenalty > 0 ? (
+                          <span className="font-bold text-red-500">{remainingPenalty.toLocaleString('vi-VN')}đ</span>
+                        ) : totalPenalty > 0 ? (
+                          <span className="font-bold text-green-500">Đã đóng đủ</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        {paidCount > 0 ? (
+                          <span className="font-bold text-blue-500">{(paidCount * 10000).toLocaleString('vi-VN')}đ</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {/* Footer tổng */}
+              {(() => {
+                const today = format(new Date(), 'yyyy-MM-dd');
+                let totalMissing = 0, totalPenaltyAll = 0, totalPaidAll = 0;
+                users.forEach(u => {
+                  const missing = workdays.filter(d => d <= today && !attendanceReports.some(r => r.userId === u.uid && r.date === d));
+                  const paid = missing.filter(d => paidPenalties[`${u.uid}_${d}`]).length;
+                  totalMissing += missing.length;
+                  totalPenaltyAll += (missing.length - paid) * 10000;
+                  totalPaidAll += paid * 10000;
+                });
+                return (
+                  <tfoot>
+                    <tr className="border-t-2 border-gray-100 bg-gray-50/80">
+                      <td className="px-6 py-3 font-bold text-gray-700" colSpan={workdays.length + 1}>Tổng toàn team</td>
+                      <td className="px-4 py-3 text-center font-bold text-red-500">{totalMissing} ngày</td>
+                      <td className="px-4 py-3 text-center font-bold text-red-500">{totalPenaltyAll.toLocaleString('vi-VN')}đ</td>
+                      <td className="px-4 py-3 text-center font-bold text-blue-500">{totalPaidAll.toLocaleString('vi-VN')}đ</td>
+                    </tr>
+                  </tfoot>
+                );
+              })()}
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Performance Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
