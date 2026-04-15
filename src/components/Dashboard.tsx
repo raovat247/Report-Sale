@@ -52,14 +52,41 @@ export default function Dashboard({ user }: DashboardProps) {
 
   // ── Báo cáo hàng ngày / phạt ──────────────────────────────────────────────
   const [attendanceReports, setAttendanceReports] = useState<DailyReport[]>([]);
-  const [paidPenalties, setPaidPenalties] = useState<Record<string, boolean>>({}); // key: `${uid}_${date}`
+  const [paidPenalties, setPaidPenalties] = useState<Record<string, boolean>>({});
   const [confirmingPenalty, setConfirmingPenalty] = useState<string | null>(null);
-  // Tuần hiện tại (T2–T6)
-  const attendanceWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
-  const attendanceWeekEnd   = format(addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 4), 'yyyy-MM-dd');
-  const workdays = Array.from({ length: 5 }, (_, i) =>
-    format(addDays(parseISO(attendanceWeekStart), i), 'yyyy-MM-dd')
-  ).filter(d => !isWeekend(parseISO(d)));
+  const [attendanceFilter, setAttendanceFilter] = useState<'week' | 'month' | 'year'>('week');
+  const [attendanceRefDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+
+  // Tính range và workdays theo bộ lọc
+  const attendanceRange = useMemo(() => {
+    const ref = parseISO(attendanceRefDate);
+    let start: Date, end: Date;
+    if (attendanceFilter === 'week') {
+      start = startOfWeek(ref, { weekStartsOn: 1 });
+      end = addDays(start, 4);
+    } else if (attendanceFilter === 'month') {
+      start = startOfMonth(ref);
+      end = endOfMonth(ref);
+    } else {
+      start = startOfYear(ref);
+      end = endOfYear(ref);
+    }
+    return {
+      start: format(start, 'yyyy-MM-dd'),
+      end: format(end, 'yyyy-MM-dd'),
+    };
+  }, [attendanceFilter, attendanceRefDate]);
+
+  const workdays = useMemo(() => {
+    const days: string[] = [];
+    let cur = parseISO(attendanceRange.start);
+    const endDate = parseISO(attendanceRange.end);
+    while (cur <= endDate) {
+      if (!isWeekend(cur)) days.push(format(cur, 'yyyy-MM-dd'));
+      cur = addDays(cur, 1);
+    }
+    return days;
+  }, [attendanceRange]);
 
   const isAdmin = user.role === 'admin';
 
@@ -69,23 +96,22 @@ export default function Dashboard({ user }: DashboardProps) {
 
   useEffect(() => {
     fetchAttendance();
-  }, []);
+  }, [attendanceRange]);
 
   const fetchAttendance = useCallback(async () => {
     try {
       const snap = await getDocs(query(
         collection(db, 'daily_reports'),
-        where('date', '>=', attendanceWeekStart),
-        where('date', '<=', attendanceWeekEnd)
+        where('date', '>=', attendanceRange.start),
+        where('date', '<=', attendanceRange.end)
       ));
       setAttendanceReports(snap.docs.map(d => d.data() as DailyReport));
 
-      // Load paid penalties (lưu trong settings để dùng quyền admin sẵn có)
       const penaltyDoc = await getDoc(doc(db, 'settings', 'penalties'));
       const paid: Record<string, boolean> = penaltyDoc.exists() ? (penaltyDoc.data() as Record<string, boolean>) : {};
       setPaidPenalties(paid);
     } catch { /* ignore */ }
-  }, [attendanceWeekStart, attendanceWeekEnd]);
+  }, [attendanceRange]);
 
   const confirmPenaltyPaid = async (uid: string, date: string) => {
     const key = `${uid}_${date}`;
@@ -498,132 +524,159 @@ export default function Dashboard({ user }: DashboardProps) {
         </div>
       </div>
 
-      {/* Daily Attendance & Penalty Table */}
-      {isAdmin && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-          <div className="p-6 border-b border-gray-50 flex flex-wrap justify-between items-center gap-3">
-            <div>
-              <h3 className="text-lg font-bold text-gray-900">Báo cáo hàng ngày tuần này</h3>
-              <p className="text-xs text-gray-400 mt-0.5">{attendanceWeekStart} → {attendanceWeekEnd} · Phạt 10.000đ/ngày không báo cáo</p>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead>
-                <tr className="border-b border-gray-50 bg-gray-50/60">
-                  <th className="px-6 py-3 text-xs font-semibold text-gray-400 uppercase whitespace-nowrap">Nhân viên</th>
-                  {workdays.map(d => (
-                    <th key={d} className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase text-center whitespace-nowrap">
-                      {format(parseISO(d), 'EEE dd/MM').replace('Mon','T2').replace('Tue','T3').replace('Wed','T4').replace('Thu','T5').replace('Fri','T6')}
-                    </th>
-                  ))}
-                  <th className="px-4 py-3 text-xs font-semibold text-red-400 uppercase text-center whitespace-nowrap">Số ngày thiếu</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-red-400 uppercase text-center whitespace-nowrap">Tổng phạt</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-green-500 uppercase text-center whitespace-nowrap">Đã đóng</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {users.map(u => {
-                  const today = format(new Date(), 'yyyy-MM-dd');
-                  const missingDays = workdays.filter(d => {
-                    if (d >= today) return false; // hôm nay và tương lai chưa tính phạt
-                    return !attendanceReports.some(r => r.userId === u.uid && r.date === d);
-                  });
-                  const totalPenalty = missingDays.length * 10000;
-                  const paidCount = missingDays.filter(d => paidPenalties[`${u.uid}_${d}`]).length;
-                  const unpaidCount = missingDays.length - paidCount;
-                  const remainingPenalty = unpaidCount * 10000;
+      {/* Daily Attendance & Penalty Table — mọi role đều thấy */}
+      {(() => {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        // Khi tháng/năm: ẩn cột từng ngày, chỉ show tổng hợp
+        const showDayCols = attendanceFilter === 'week';
+        const filterLabel = attendanceFilter === 'week' ? 'Tuần' : attendanceFilter === 'month' ? 'Tháng' : 'Năm';
 
-                  return (
-                    <tr key={u.uid} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">
-                            {u.displayName?.charAt(0)}
+        return (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
+            <div className="p-6 border-b border-gray-50 flex flex-wrap justify-between items-center gap-3">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Tình trạng báo cáo hàng ngày</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{attendanceRange.start} → {attendanceRange.end} · Phạt 10.000đ/ngày không báo cáo</p>
+              </div>
+              {/* Bộ lọc */}
+              <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+                {(['week','month','year'] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setAttendanceFilter(f)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      attendanceFilter === f ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {f === 'week' ? 'Tuần' : f === 'month' ? 'Tháng' : 'Năm'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead>
+                  <tr className="border-b border-gray-50 bg-gray-50/60">
+                    <th className="px-6 py-3 text-xs font-semibold text-gray-400 uppercase whitespace-nowrap">Nhân viên</th>
+                    {showDayCols && workdays.map(d => (
+                      <th key={d} className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase text-center whitespace-nowrap">
+                        {format(parseISO(d), 'EEE dd/MM').replace('Mon','T2').replace('Tue','T3').replace('Wed','T4').replace('Thu','T5').replace('Fri','T6')}
+                      </th>
+                    ))}
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase text-center whitespace-nowrap">Đã BC</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-red-400 uppercase text-center whitespace-nowrap">Thiếu</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-red-400 uppercase text-center whitespace-nowrap">Tổng phạt</th>
+                    {isAdmin && <th className="px-4 py-3 text-xs font-semibold text-green-500 uppercase text-center whitespace-nowrap">Đã đóng</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {users.map(u => {
+                    const pastDays = workdays.filter(d => d < today);
+                    const missingDays = pastDays.filter(d => !attendanceReports.some(r => r.userId === u.uid && r.date === d));
+                    const reportedDays = pastDays.filter(d => attendanceReports.some(r => r.userId === u.uid && r.date === d));
+                    const paidCount = missingDays.filter(d => paidPenalties[`${u.uid}_${d}`]).length;
+                    const unpaidCount = missingDays.length - paidCount;
+                    const remainingPenalty = unpaidCount * 10000;
+                    const totalPenalty = missingDays.length * 10000;
+
+                    return (
+                      <tr key={u.uid} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">
+                              {u.displayName?.charAt(0)}
+                            </div>
+                            <span className="font-semibold text-gray-900 whitespace-nowrap">{u.displayName}</span>
                           </div>
-                          <span className="font-semibold text-gray-900 whitespace-nowrap">{u.displayName}</span>
-                        </div>
-                      </td>
-                      {workdays.map(d => {
-                        const hasReport = attendanceReports.some(r => r.userId === u.uid && r.date === d);
-                        const isFuture = d >= today; // hôm nay hiển thị — (chưa đến cuối ngày)
-                        const isPaid = paidPenalties[`${u.uid}_${d}`];
-                        return (
-                          <td key={d} className="px-4 py-4 text-center">
-                            {isFuture ? (
-                              <span className="text-gray-300 text-xs">—</span>
-                            ) : hasReport ? (
-                              <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto" />
-                            ) : isPaid ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                <CheckCircle2 className="w-3 h-3" />Đã đóng
-                              </span>
+                        </td>
+                        {showDayCols && workdays.map(d => {
+                          const hasReport = attendanceReports.some(r => r.userId === u.uid && r.date === d);
+                          const isFuture = d >= today;
+                          const isPaid = paidPenalties[`${u.uid}_${d}`];
+                          return (
+                            <td key={d} className="px-4 py-4 text-center">
+                              {isFuture ? (
+                                <span className="text-gray-300 text-xs">—</span>
+                              ) : hasReport ? (
+                                <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto" />
+                              ) : isPaid ? (
+                                <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                  <CheckCircle2 className="w-3 h-3" />Đã đóng
+                                </span>
+                              ) : (
+                                <div className="flex flex-col items-center gap-1">
+                                  <AlertCircle className="w-5 h-5 text-red-400 mx-auto" />
+                                  {isAdmin && (
+                                    <button
+                                      onClick={() => confirmPenaltyPaid(u.uid, d)}
+                                      disabled={confirmingPenalty === `${u.uid}_${d}`}
+                                      className="text-[10px] font-semibold text-white bg-red-400 hover:bg-red-500 px-2 py-0.5 rounded-full whitespace-nowrap transition-colors disabled:opacity-50"
+                                    >
+                                      {confirmingPenalty === `${u.uid}_${d}` ? '...' : 'Xác nhận'}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td className="px-4 py-4 text-center font-bold text-green-600">{reportedDays.length}</td>
+                        <td className="px-4 py-4 text-center">
+                          <span className={`font-bold ${missingDays.length > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                            {missingDays.length}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          {remainingPenalty > 0 ? (
+                            <span className="font-bold text-red-500">{remainingPenalty.toLocaleString('vi-VN')}đ</span>
+                          ) : totalPenalty > 0 ? (
+                            <span className="font-bold text-green-500">Đã đóng đủ</span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        {isAdmin && (
+                          <td className="px-4 py-4 text-center">
+                            {paidCount > 0 ? (
+                              <span className="font-bold text-blue-500">{(paidCount * 10000).toLocaleString('vi-VN')}đ</span>
                             ) : (
-                              <div className="flex flex-col items-center gap-1">
-                                <AlertCircle className="w-5 h-5 text-red-400 mx-auto" />
-                                <button
-                                  onClick={() => confirmPenaltyPaid(u.uid, d)}
-                                  disabled={confirmingPenalty === `${u.uid}_${d}`}
-                                  className="text-[10px] font-semibold text-white bg-red-400 hover:bg-red-500 px-2 py-0.5 rounded-full whitespace-nowrap transition-colors disabled:opacity-50"
-                                >
-                                  {confirmingPenalty === `${u.uid}_${d}` ? '...' : 'Xác nhận'}
-                                </button>
-                              </div>
+                              <span className="text-gray-400">—</span>
                             )}
                           </td>
-                        );
-                      })}
-                      <td className="px-4 py-4 text-center">
-                        <span className={`font-bold ${missingDays.length > 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                          {missingDays.length}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        {remainingPenalty > 0 ? (
-                          <span className="font-bold text-red-500">{remainingPenalty.toLocaleString('vi-VN')}đ</span>
-                        ) : totalPenalty > 0 ? (
-                          <span className="font-bold text-green-500">Đã đóng đủ</span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
                         )}
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        {paidCount > 0 ? (
-                          <span className="font-bold text-blue-500">{(paidCount * 10000).toLocaleString('vi-VN')}đ</span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              {/* Footer tổng */}
-              {(() => {
-                const today = format(new Date(), 'yyyy-MM-dd');
-                let totalMissing = 0, totalPenaltyAll = 0, totalPaidAll = 0;
-                users.forEach(u => {
-                  const missing = workdays.filter(d => d < today && !attendanceReports.some(r => r.userId === u.uid && r.date === d));
-                  const paid = missing.filter(d => paidPenalties[`${u.uid}_${d}`]).length;
-                  totalMissing += missing.length;
-                  totalPenaltyAll += (missing.length - paid) * 10000;
-                  totalPaidAll += paid * 10000;
-                });
-                return (
-                  <tfoot>
-                    <tr className="border-t-2 border-gray-100 bg-gray-50/80">
-                      <td className="px-6 py-3 font-bold text-gray-700" colSpan={workdays.length + 1}>Tổng toàn team</td>
-                      <td className="px-4 py-3 text-center font-bold text-red-500">{totalMissing} ngày</td>
-                      <td className="px-4 py-3 text-center font-bold text-red-500">{totalPenaltyAll.toLocaleString('vi-VN')}đ</td>
-                      <td className="px-4 py-3 text-center font-bold text-blue-500">{totalPaidAll.toLocaleString('vi-VN')}đ</td>
-                    </tr>
-                  </tfoot>
-                );
-              })()}
-            </table>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  {(() => {
+                    let totalReported = 0, totalMissing = 0, totalPenaltyAll = 0, totalPaidAll = 0;
+                    const pastDays = workdays.filter(d => d < today);
+                    users.forEach(u => {
+                      const missing = pastDays.filter(d => !attendanceReports.some(r => r.userId === u.uid && r.date === d));
+                      const reported = pastDays.length - missing.length;
+                      const paid = missing.filter(d => paidPenalties[`${u.uid}_${d}`]).length;
+                      totalReported += reported;
+                      totalMissing += missing.length;
+                      totalPenaltyAll += (missing.length - paid) * 10000;
+                      totalPaidAll += paid * 10000;
+                    });
+                    return (
+                      <tr className="border-t-2 border-gray-100 bg-gray-50/80">
+                        <td className="px-6 py-3 font-bold text-gray-700" colSpan={showDayCols ? workdays.length + 1 : 1}>Tổng toàn team</td>
+                        <td className="px-4 py-3 text-center font-bold text-green-600">{totalReported}</td>
+                        <td className="px-4 py-3 text-center font-bold text-red-500">{totalMissing} ngày</td>
+                        <td className="px-4 py-3 text-center font-bold text-red-500">{totalPenaltyAll.toLocaleString('vi-VN')}đ</td>
+                        {isAdmin && <td className="px-4 py-3 text-center font-bold text-blue-500">{totalPaidAll.toLocaleString('vi-VN')}đ</td>}
+                      </tr>
+                    );
+                  })()}
+                </tfoot>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Performance Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
