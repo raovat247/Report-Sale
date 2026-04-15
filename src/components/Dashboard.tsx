@@ -522,7 +522,7 @@ export default function Dashboard({ user }: DashboardProps) {
                 {users.map(u => {
                   const today = format(new Date(), 'yyyy-MM-dd');
                   const missingDays = workdays.filter(d => {
-                    if (d > today) return false; // chưa đến ngày thì không tính
+                    if (d >= today) return false; // hôm nay và tương lai chưa tính phạt
                     return !attendanceReports.some(r => r.userId === u.uid && r.date === d);
                   });
                   const totalPenalty = missingDays.length * 10000;
@@ -542,7 +542,7 @@ export default function Dashboard({ user }: DashboardProps) {
                       </td>
                       {workdays.map(d => {
                         const hasReport = attendanceReports.some(r => r.userId === u.uid && r.date === d);
-                        const isFuture = d > today;
+                        const isFuture = d >= today; // hôm nay hiển thị — (chưa đến cuối ngày)
                         const isPaid = paidPenalties[`${u.uid}_${d}`];
                         return (
                           <td key={d} className="px-4 py-4 text-center">
@@ -599,7 +599,7 @@ export default function Dashboard({ user }: DashboardProps) {
                 const today = format(new Date(), 'yyyy-MM-dd');
                 let totalMissing = 0, totalPenaltyAll = 0, totalPaidAll = 0;
                 users.forEach(u => {
-                  const missing = workdays.filter(d => d <= today && !attendanceReports.some(r => r.userId === u.uid && r.date === d));
+                  const missing = workdays.filter(d => d < today && !attendanceReports.some(r => r.userId === u.uid && r.date === d));
                   const paid = missing.filter(d => paidPenalties[`${u.uid}_${d}`]).length;
                   totalMissing += missing.length;
                   totalPenaltyAll += (missing.length - paid) * 10000;
