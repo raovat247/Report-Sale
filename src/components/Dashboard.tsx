@@ -80,10 +80,9 @@ export default function Dashboard({ user }: DashboardProps) {
       ));
       setAttendanceReports(snap.docs.map(d => d.data() as DailyReport));
 
-      // Load paid penalties
-      const penaltySnap = await getDocs(collection(db, 'penalties'));
-      const paid: Record<string, boolean> = {};
-      penaltySnap.docs.forEach(d => { paid[d.id] = d.data().paid === true; });
+      // Load paid penalties (lưu trong settings để dùng quyền admin sẵn có)
+      const penaltyDoc = await getDoc(doc(db, 'settings', 'penalties'));
+      const paid: Record<string, boolean> = penaltyDoc.exists() ? (penaltyDoc.data() as Record<string, boolean>) : {};
       setPaidPenalties(paid);
     } catch { /* ignore */ }
   }, [attendanceWeekStart, attendanceWeekEnd]);
@@ -92,7 +91,10 @@ export default function Dashboard({ user }: DashboardProps) {
     const key = `${uid}_${date}`;
     setConfirmingPenalty(key);
     try {
-      await setDoc(doc(db, 'penalties', key), { uid, date, paid: true, confirmedAt: new Date().toISOString() });
+      // Merge vào document settings/penalties
+      const { updateDoc, arrayUnion } = await import('firebase/firestore');
+      const penRef = doc(db, 'settings', 'penalties');
+      await setDoc(penRef, { [key]: true }, { merge: true });
       setPaidPenalties(prev => ({ ...prev, [key]: true }));
       toast.success('Đã xác nhận đóng phạt');
     } catch (err) {
