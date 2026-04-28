@@ -15,8 +15,8 @@ export default function SignSync() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState<'upload' | 'review' | 'success'>('upload');
   const [error, setError] = useState<string | null>(null);
-  const [signLocation, setSignLocation] = useState('');
-  const [signDate, setSignDate] = useState('');
+  const [signLocation, setSignLocation] = useState('Hồ Chí Minh');
+  const [signDate, setSignDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const fileInputGpkd = useRef<HTMLInputElement>(null);
   const fileInputCccd = useRef<HTMLInputElement>(null);
@@ -317,21 +317,26 @@ export default function SignSync() {
                 <p className="text-xs font-black uppercase text-gray-400 tracking-widest border-b border-gray-100 pb-3">II. Thông tin tổ chức</p>
                 <div className="grid gap-4">
                   {[
-                    { label: 'Tên Doanh Nghiệp', key: 'name', parent: 'organization' },
-                    { label: 'Mã Số Thuế', key: 'taxId', parent: 'organization' },
-                    { label: 'Địa Chỉ (Theo ĐKKD)', key: 'address', parent: 'organization' },
-                    { label: 'Đại diện Pháp luật', key: 'representativeName', parent: 'organization' },
-                    { label: 'Số CCCD Đại diện', key: 'representativeId', parent: 'organization' },
-                    { label: 'Số Điện Thoại', key: 'phone', parent: 'organization' },
-                    { label: 'Email', key: 'email', parent: 'organization' },
-                  ].map((field) => (
-                    <div key={field.key} className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{field.label}</label>
-                      <input type="text" value={(data as any)[field.parent][field.key] || ''}
-                        onChange={(e) => setData(prev => ({ ...prev, [field.parent]: { ...(prev as any)[field.parent], [field.key]: e.target.value } }))}
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-gray-200 focus:ring-2 focus:ring-gray-100 outline-none text-sm font-semibold text-gray-800" />
-                    </div>
-                  ))}
+                    { label: 'Tên Doanh Nghiệp', key: 'name', parent: 'organization', required: true },
+                    { label: 'Mã Số Thuế', key: 'taxId', parent: 'organization', required: true },
+                    { label: 'Địa Chỉ (Theo ĐKKD)', key: 'address', parent: 'organization', required: true },
+                    { label: 'Đại diện Pháp luật', key: 'representativeName', parent: 'organization', required: true },
+                    { label: 'Số CCCD Đại diện', key: 'representativeId', parent: 'organization', required: true },
+                    { label: 'Số Điện Thoại', key: 'phone', parent: 'organization', required: true },
+                    { label: 'Email', key: 'email', parent: 'organization', required: false },
+                  ].map((field) => {
+                    const val = (data as any)[field.parent][field.key] || '';
+                    const isEmpty = field.required && !val.trim();
+                    return (
+                      <div key={field.key} className="flex flex-col gap-1">
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${isEmpty ? 'text-red-400' : 'text-gray-400'}`}>{field.label}{field.required && ' *'}</label>
+                        <input type="text" value={val}
+                          onChange={(e) => setData(prev => ({ ...prev, [field.parent]: { ...(prev as any)[field.parent], [field.key]: e.target.value } }))}
+                          className={`w-full px-4 py-2.5 rounded-xl focus:ring-2 outline-none text-sm font-semibold text-gray-800 border transition-colors
+                            ${isEmpty ? 'bg-red-50 border-red-300 focus:border-red-400 focus:ring-red-100' : 'bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 focus:ring-gray-100'}`} />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -341,17 +346,22 @@ export default function SignSync() {
                   <p className="text-xs font-black uppercase text-gray-400 tracking-widest border-b border-gray-100 pb-3">I. Thông tin đại diện</p>
                   <div className="grid gap-4">
                     {[
-                      { label: 'Họ và tên', key: 'fullName', parent: 'individual' },
-                      { label: 'Chức Vụ', key: 'position', parent: 'individual' },
-                      { label: 'Số CCCD/Hộ chiếu', key: 'idNumber', parent: 'individual' },
-                    ].map((field) => (
-                      <div key={field.key} className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{field.label}</label>
-                        <input type="text" value={(data as any)[field.parent][field.key] || ''}
-                          onChange={(e) => setData(prev => ({ ...prev, [field.parent]: { ...(prev as any)[field.parent], [field.key]: e.target.value } }))}
-                          className="w-full px-4 py-2.5 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-gray-200 focus:ring-2 focus:ring-gray-100 outline-none text-sm font-semibold text-gray-800" />
-                      </div>
-                    ))}
+                      { label: 'Họ và tên', key: 'fullName', parent: 'individual', required: true },
+                      { label: 'Chức Vụ', key: 'position', parent: 'individual', required: true },
+                      { label: 'Số CCCD/Hộ chiếu', key: 'idNumber', parent: 'individual', required: true },
+                    ].map((field) => {
+                      const val = (data as any)[field.parent][field.key] || '';
+                      const isEmpty = field.required && !val.trim();
+                      return (
+                        <div key={field.key} className="flex flex-col gap-1">
+                          <label className={`text-[10px] font-bold uppercase tracking-wider ${isEmpty ? 'text-red-400' : 'text-gray-400'}`}>{field.label} *</label>
+                          <input type="text" value={val}
+                            onChange={(e) => setData(prev => ({ ...prev, [field.parent]: { ...(prev as any)[field.parent], [field.key]: e.target.value } }))}
+                            className={`w-full px-4 py-2.5 rounded-xl focus:ring-2 outline-none text-sm font-semibold text-gray-800 border transition-colors
+                              ${isEmpty ? 'bg-red-50 border-red-300 focus:border-red-400 focus:ring-red-100' : 'bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 focus:ring-gray-100'}`} />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -386,9 +396,10 @@ export default function SignSync() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Thời gian*</label>
+                  <label className={`text-[10px] font-bold uppercase tracking-wider ${!data.service.duration ? 'text-red-400' : 'text-gray-400'}`}>Thời gian *</label>
                   <select value={data.service.duration} onChange={(e) => setData(prev => ({ ...prev, service: { ...prev.service, duration: e.target.value } }))}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-transparent rounded-xl outline-none text-sm font-semibold text-gray-800">
+                    className={`w-full px-4 py-2.5 rounded-xl outline-none text-sm font-semibold text-gray-800 border transition-colors
+                      ${!data.service.duration ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-transparent'}`}>
                     <option value="">Chọn</option><option>1 năm</option><option>2 năm</option><option>3 năm</option>
                   </select>
                 </div>
@@ -436,7 +447,7 @@ export default function SignSync() {
               <button onClick={() => setStep('review')} className="px-8 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors">
                 Quay lại chỉnh sửa
               </button>
-              <button onClick={() => { setStep('upload'); setImages({ gpkd: '', cccd: '' }); setData(emptyData); setSignLocation(''); setSignDate(''); }}
+              <button onClick={() => { setStep('upload'); setImages({ gpkd: '', cccd: '' }); setData(emptyData); setSignLocation('Hồ Chí Minh'); setSignDate(new Date().toISOString().split('T')[0]); }}
                 className="px-8 py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-all">
                 Hồ sơ mới
               </button>
