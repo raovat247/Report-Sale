@@ -215,7 +215,7 @@ export default function SignSync() {
           </div>
 
           {/* Page 2 */}
-          <div style={{ width: '210mm', height: '297mm', boxSizing: 'border-box', backgroundColor: '#ffffff', padding: '15mm 20mm', lineHeight: '1.4' }}>
+          <div style={{ width: '210mm', height: '297mm', overflow: 'hidden', boxSizing: 'border-box', backgroundColor: '#ffffff', padding: '15mm 20mm', lineHeight: '1.4' }}>
             <div style={{ borderTop: '0.8pt solid #000000', paddingTop: '8px', paddingBottom: '12px', fontSize: '9pt' }}>
               <div>Hồ sơ gồm:</div>
               <div style={{ paddingLeft: '20px' }}>
