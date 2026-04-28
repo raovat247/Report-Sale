@@ -209,7 +209,7 @@ export default function SignSync() {
               </div>
             </div>
             <div style={{ flex: 1 }}></div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingBottom: '6mm' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingBottom: '6mm', marginTop: '100px' }}>
               <div style={{ width: '55%', textAlign: 'center', fontWeight: 'bold', fontSize: '11pt' }}>{data.individual.fullName}</div>
             </div>
           </div>
