@@ -323,7 +323,7 @@ export default function SignSync() {
                     { label: 'Đại diện Pháp luật', key: 'representativeName', parent: 'organization', required: true },
                     { label: 'Số CCCD Đại diện', key: 'representativeId', parent: 'organization', required: true },
                     { label: 'Số Điện Thoại', key: 'phone', parent: 'organization', required: true },
-                    { label: 'Email', key: 'email', parent: 'organization', required: false },
+                    { label: 'Email', key: 'email', parent: 'organization', required: true },
                   ].map((field) => {
                     const val = (data as any)[field.parent][field.key] || '';
                     const isEmpty = field.required && !val.trim();
