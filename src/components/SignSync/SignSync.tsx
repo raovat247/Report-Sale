@@ -206,12 +206,10 @@ export default function SignSync() {
                 <div style={{ fontSize: '10pt', fontStyle: 'italic', marginBottom: '15px' }}>{signLocation || '.......................'}, {signDateFormatted}</div>
                 <div style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '11pt' }}>KHÁCH HÀNG</div>
                 <div style={{ fontSize: '9pt', fontStyle: 'italic', lineHeight: '1.4' }}>(Ký, ghi rõ họ tên Người đại diện Pháp luật/ Người đại diện hợp pháp và đóng dấu)</div>
+                <div style={{ fontWeight: 'bold', fontSize: '11pt', marginTop: '80px' }}>{data.individual.fullName}</div>
               </div>
             </div>
             <div style={{ flex: 1 }}></div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingBottom: '6mm', marginTop: '100px' }}>
-              <div style={{ width: '55%', textAlign: 'center', fontWeight: 'bold', fontSize: '11pt' }}>{data.individual.fullName}</div>
-            </div>
           </div>
 
           {/* Page 2 */}
