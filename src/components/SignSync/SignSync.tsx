@@ -76,10 +76,10 @@ export default function SignSync() {
       html2canvas: {
         scale: 2, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0,
         onclone: (clonedDoc: Document) => {
-          const styleTags = clonedDoc.getElementsByTagName('style');
-          for (let i = 0; i < styleTags.length; i++) {
-            if (styleTags[i].innerHTML.includes('oklch')) styleTags[i].remove();
-          }
+          Array.from(clonedDoc.getElementsByTagName('style')).forEach(s => s.remove());
+          Array.from(clonedDoc.getElementsByTagName('link')).forEach(l => {
+            if (l.rel === 'stylesheet') l.remove();
+          });
         }
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
