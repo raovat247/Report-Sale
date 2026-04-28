@@ -17,6 +17,7 @@ import Leaderboard from './components/Leaderboard';
 import GeneralDashboard from './components/GeneralDashboard';
 import PartnerLeadManagement from './components/PartnerLeadManagement';
 import ProfileSettings from './components/ProfileSettings';
+import SignSync from './components/SignSync/SignSync';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppSetting } from './types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -44,7 +45,8 @@ import {
   Trophy,
   BarChart3,
   Ban,
-  Briefcase
+  Briefcase,
+  FileBadge,
 } from 'lucide-react';
 
 export default function App() {
@@ -162,6 +164,7 @@ export default function App() {
             <Route path="/profile" element={<ProfileSettings user={user} onUserUpdate={setUser} />} />
             <Route path="/settings" element={<SystemSettings user={user} />} />
             <Route path="/lead-partners" element={<PartnerLeadManagement user={user} />} />
+            <Route path="/dk03" element={<SignSync />} />
           </Routes>
         </Layout>
       </Router>
@@ -190,6 +193,7 @@ function Layout({ children, user, settings }: { children: React.ReactNode; user:
     { label: 'Bài đăng MXH', path: '/social-posts', icon: <Share2 className="w-5 h-5" />, roles: ['admin', 'sales'] },
     { label: 'Thành viên', path: '/users', icon: <UserCheck className="w-5 h-5" />, roles: ['admin'] },
     { label: 'Lịch sử', path: '/history', icon: <History className="w-5 h-5" />, roles: ['admin', 'sales'] },
+    { label: 'Phiếu DK03', path: '/dk03', icon: <FileBadge className="w-5 h-5" />, roles: ['admin', 'sales'] },
     { label: 'Cài đặt', path: '/settings', icon: <SettingsIcon className="w-5 h-5" />, roles: ['admin'] },
   ].filter(item => item.roles.includes(user.role));
 
