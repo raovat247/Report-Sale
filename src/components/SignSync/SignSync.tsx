@@ -416,7 +416,7 @@ export default function SignSync() {
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Loại dịch vụ*</label>
                   <select value={data.service.type} onChange={(e) => setData(prev => ({ ...prev, service: { ...prev.service, type: e.target.value } }))}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-transparent rounded-xl outline-none text-sm font-semibold text-gray-800">
-                    <option>Đăng ký</option><option>Gia hạn</option><option>Thay đổi thông tin</option>
+                    <option>Cấp mới</option><option>Gia hạn</option><option>Thay đổi thông tin</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">

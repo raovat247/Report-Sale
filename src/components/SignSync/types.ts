@@ -29,5 +29,5 @@ export interface ExtractedData {
 export const emptyData: ExtractedData = {
   organization: { name: '', taxId: '', foundingDate: '', address: '', representativeName: '', representativeId: '', phone: '', email: '' },
   individual: { fullName: '', position: '', idNumber: '', dob: '', address: '', phone: '', email: '' },
-  service: { type: 'Đăng ký', duration: '', device: 'USB Token', serialNumber: '' },
+  service: { type: 'Cấp mới', duration: '', device: 'USB Token', serialNumber: '' },
 };

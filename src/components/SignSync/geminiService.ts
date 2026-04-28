@@ -40,7 +40,7 @@ export async function extractDataFromImages(images: { gpkd: string; cccd: string
         "email": "Email (để trống nếu không có)"
       },
       "service": {
-        "type": "Mặc định 'Đăng ký'",
+        "type": "Mặc định 'Cấp mới'",
         "duration": "Mặc định ''",
         "device": "Mặc định 'USB Token'"
       }
