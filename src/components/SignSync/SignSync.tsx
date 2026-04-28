@@ -143,10 +143,8 @@ export default function SignSync() {
                 <div style={{ padding: '3px 8px 6px 8px', borderBottom: '0.8pt solid #000000', fontWeight: 'bold', fontSize: '10pt', lineHeight: '1' }}>{data.organization.taxId}</div>
                 <div style={{ padding: '3px 8px 6px 8px', borderBottom: '0.8pt solid #000000', borderRight: '0.8pt solid #000000', fontSize: '9pt', lineHeight: '1' }}>Số CCCD/Hộ chiếu*:</div>
                 <div style={{ padding: '3px 8px 6px 8px', borderBottom: '0.8pt solid #000000', borderRight: '0.8pt solid #000000', fontSize: '10pt', lineHeight: '1' }}>{data.individual.idNumber}</div>
-                <div style={{ padding: '3px 8px 6px 8px', borderBottom: '0.8pt solid #000000', borderRight: '0.8pt solid #000000', fontSize: '8pt', lineHeight: '1.1' }}>Người đại diện Pháp luật/Hợp pháp*:</div>
-                <div style={{ padding: '3px 8px 6px 8px', borderBottom: '0.8pt solid #000000', fontSize: '10pt', lineHeight: '1' }}>{data.organization.representativeName}</div>
-                <div style={{ padding: '3px 8px 6px 8px', borderBottom: '0.8pt solid #000000', borderRight: '0.8pt solid #000000', fontSize: '9pt', lineHeight: '1' }}>Địa chỉ*:</div>
-                <div style={{ padding: '3px 8px 6px 8px', borderBottom: '0.8pt solid #000000', borderRight: '0.8pt solid #000000', fontSize: '9pt', lineHeight: '1.2' }}>{data.organization.address}</div>
+                <div style={{ gridColumn: 'span 2', borderBottom: '0.8pt solid #000000' }}></div>
+                <div style={{ gridColumn: 'span 2', borderBottom: '0.8pt solid #000000', borderRight: '0.8pt solid #000000' }}></div>
                 <div style={{ padding: '3px 8px 6px 8px', borderBottom: '0.8pt solid #000000', borderRight: '0.8pt solid #000000', fontSize: '8pt', lineHeight: '1.1' }}>Địa chỉ (ghi theo ĐKKD)*:</div>
                 <div style={{ padding: '3px 8px 6px 8px', borderBottom: '0.8pt solid #000000', fontSize: '9pt', lineHeight: '1.2' }}>{data.organization.address}</div>
                 <div style={{ padding: '3px 8px 6px 8px', borderBottom: '0.8pt solid #000000', borderRight: '0.8pt solid #000000', fontSize: '9pt', lineHeight: '1' }}>Số điện thoại*:</div>
