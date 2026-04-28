@@ -84,7 +84,10 @@ export default function SignSync() {
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
     };
-    html2pdf().from(element).set(opt).save().then(() => {
+    html2pdf().from(element).set(opt).toPdf().get('pdf').then((pdf: any) => {
+      const total = pdf.internal.getNumberOfPages();
+      for (let i = total; i > 2; i--) pdf.deletePage(i);
+    }).save().then(() => {
       confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
       setStep('success');
     });
