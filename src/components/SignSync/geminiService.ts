@@ -1,9 +1,13 @@
 import { GoogleGenAI } from '@google/genai';
 import { ExtractedData } from './types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+
+function getAI() {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error('GEMINI_API_KEY chưa được cấu hình. Liên hệ quản trị viên.');
+  return new GoogleGenAI({ apiKey: key });
+}
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -60,7 +64,7 @@ export async function extractDataFromImages(images: { gpkd: string; cccd: string
   for (const model of MODELS) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        const response = await ai.models.generateContent({
+        const response = await getAI().models.generateContent({
           model,
           contents: [{ role: 'user', parts: [{ text: prompt }, gpkdPart, cccdPart] }],
           config: { responseMimeType: 'application/json' },
