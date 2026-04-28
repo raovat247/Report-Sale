@@ -316,27 +316,48 @@ export default function SignSync() {
               <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
                 <p className="text-xs font-black uppercase text-gray-400 tracking-widest border-b border-gray-100 pb-3">II. Thông tin tổ chức</p>
                 <div className="grid gap-4">
-                  {[
-                    { label: 'Tên Doanh Nghiệp', key: 'name', parent: 'organization', required: true },
-                    { label: 'Mã Số Thuế', key: 'taxId', parent: 'organization', required: true },
-                    { label: 'Địa Chỉ (Theo ĐKKD)', key: 'address', parent: 'organization', required: true },
-                    { label: 'Đại diện Pháp luật', key: 'representativeName', parent: 'organization', required: true },
-                    { label: 'Số CCCD Đại diện', key: 'representativeId', parent: 'organization', required: true },
-                    { label: 'Số Điện Thoại', key: 'phone', parent: 'organization', required: true },
-                    { label: 'Email', key: 'email', parent: 'organization', required: true },
-                  ].map((field) => {
-                    const val = (data as any)[field.parent][field.key] || '';
-                    const isEmpty = field.required && !val.trim();
+                  {(() => {
+                    const orgField = (label: string, key: keyof typeof data.organization, required = true) => {
+                      const val = data.organization[key] || '';
+                      const isEmpty = required && !val.trim();
+                      return (
+                        <div key={key} className="flex flex-col gap-1">
+                          <label className={`text-[10px] font-bold uppercase tracking-wider ${isEmpty ? 'text-red-400' : 'text-gray-400'}`}>{label}{required && ' *'}</label>
+                          <input type="text" value={val}
+                            onChange={(e) => setData(prev => ({ ...prev, organization: { ...prev.organization, [key]: e.target.value } }))}
+                            className={`w-full px-4 py-2.5 rounded-xl focus:ring-2 outline-none text-sm font-semibold text-gray-800 border transition-colors
+                              ${isEmpty ? 'bg-red-50 border-red-300 focus:border-red-400 focus:ring-red-100' : 'bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 focus:ring-gray-100'}`} />
+                        </div>
+                      );
+                    };
                     return (
-                      <div key={field.key} className="flex flex-col gap-1">
-                        <label className={`text-[10px] font-bold uppercase tracking-wider ${isEmpty ? 'text-red-400' : 'text-gray-400'}`}>{field.label}{field.required && ' *'}</label>
-                        <input type="text" value={val}
-                          onChange={(e) => setData(prev => ({ ...prev, [field.parent]: { ...(prev as any)[field.parent], [field.key]: e.target.value } }))}
-                          className={`w-full px-4 py-2.5 rounded-xl focus:ring-2 outline-none text-sm font-semibold text-gray-800 border transition-colors
-                            ${isEmpty ? 'bg-red-50 border-red-300 focus:border-red-400 focus:ring-red-100' : 'bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 focus:ring-gray-100'}`} />
-                      </div>
+                      <>
+                        {orgField('Tên Doanh Nghiệp', 'name')}
+                        <div className="grid grid-cols-2 gap-4">
+                          {orgField('Mã Số Thuế', 'taxId')}
+                          {orgField('Ngày Thành Lập', 'foundingDate', false)}
+                        </div>
+                        {orgField('Địa Chỉ (Theo ĐKKD)', 'address')}
+                        <div className="grid grid-cols-2 gap-4">
+                          {orgField('Đại Diện Pháp Luật', 'representativeName')}
+                          {(() => {
+                            const val = data.individual.dob || '';
+                            return (
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Ngày Sinh Đại Diện</label>
+                                <input type="text" value={val}
+                                  onChange={(e) => setData(prev => ({ ...prev, individual: { ...prev.individual, dob: e.target.value } }))}
+                                  className="w-full px-4 py-2.5 rounded-xl focus:ring-2 outline-none text-sm font-semibold text-gray-800 border border-transparent bg-gray-50 focus:bg-white focus:border-gray-200 focus:ring-gray-100 transition-colors" />
+                              </div>
+                            );
+                          })()}
+                        </div>
+                        {orgField('Số CCCD Đại Diện', 'representativeId')}
+                        {orgField('Số Điện Thoại', 'phone')}
+                        {orgField('Email', 'email')}
+                      </>
                     );
-                  })}
+                  })()}
                 </div>
               </div>
 

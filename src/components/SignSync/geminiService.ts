@@ -23,6 +23,7 @@ export async function extractDataFromImages(images: { gpkd: string; cccd: string
       "organization": {
         "name": "Tên công ty đầy đủ",
         "taxId": "Mã số doanh nghiệp",
+        "foundingDate": "Ngày thành lập doanh nghiệp (dd/mm/yyyy) từ GPKD",
         "address": "Địa chỉ trụ sở chính",
         "representativeName": "Họ tên người đại diện pháp luật",
         "representativeId": "Số CCCD người đại diện",
@@ -33,7 +34,7 @@ export async function extractDataFromImages(images: { gpkd: string; cccd: string
         "fullName": "Họ và tên trên CCCD",
         "position": "Chức vụ (thường là Giám đốc nếu là người đại diện)",
         "idNumber": "Số CCCD",
-        "dob": "Ngày tháng năm sinh (dd/mm/yyyy)",
+        "dob": "Ngày tháng năm sinh (dd/mm/yyyy) từ CCCD",
         "address": "Nơi thường trú/Địa chỉ trên CCCD",
         "phone": "Số điện thoại (để trống nếu không có)",
         "email": "Email (để trống nếu không có)"

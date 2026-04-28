@@ -2,6 +2,7 @@ export interface ExtractedData {
   organization: {
     name: string;
     taxId: string;
+    foundingDate: string;
     address: string;
     representativeName: string;
     representativeId: string;
@@ -26,7 +27,7 @@ export interface ExtractedData {
 }
 
 export const emptyData: ExtractedData = {
-  organization: { name: '', taxId: '', address: '', representativeName: '', representativeId: '', phone: '', email: '' },
+  organization: { name: '', taxId: '', foundingDate: '', address: '', representativeName: '', representativeId: '', phone: '', email: '' },
   individual: { fullName: '', position: '', idNumber: '', dob: '', address: '', phone: '', email: '' },
   service: { type: 'Đăng ký', duration: '', device: 'USB Token', serialNumber: '' },
 };
